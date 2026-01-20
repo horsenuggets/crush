@@ -49,6 +49,19 @@ func CenterRect(area uv.Rectangle, width, height int) uv.Rectangle {
 	return image.Rect(minX, minY, maxX, maxY)
 }
 
+// BottomLeftRect returns a new [Rectangle] positioned at the bottom-left within the given area with the
+// specified width and height.
+func BottomLeftRect(area uv.Rectangle, width, height int) uv.Rectangle {
+	// Leave space for the status bar
+	const bottomPadding = 3
+
+	minX := area.Min.X
+	maxX := minX + width
+	maxY := area.Max.Y
+	minY := maxY - height - bottomPadding
+	return image.Rect(minX, minY, maxX, maxY-bottomPadding)
+}
+
 // IsFileTooBig checks if the file at the given path exceeds the specified size
 // limit.
 func IsFileTooBig(filePath string, sizeLimit int64) (bool, error) {

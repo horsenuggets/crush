@@ -73,7 +73,8 @@ const defaultModelsDialogMaxWidth = 70
 
 // Models represents a model selection dialog.
 type Models struct {
-	com *common.Common
+	com          *common.Common
+	isOnboarding bool
 
 	modelType ModelType
 	providers []catwalk.Provider
@@ -94,10 +95,12 @@ type Models struct {
 var _ Dialog = (*Models)(nil)
 
 // NewModels creates a new Models dialog.
-func NewModels(com *common.Common) (*Models, error) {
+func NewModels(com *common.Common, isOnboarding bool) (*Models, error) {
 	t := com.Styles
 	m := &Models{}
 	m.com = com
+	m.isOnboarding = isOnboarding
+
 	help := help.New()
 	help.Styles = t.DialogHelpStyles()
 
@@ -258,16 +261,38 @@ func (m *Models) Draw(scr uv.Screen, area uv.Rectangle) *tea.Cursor {
 	rc := NewRenderContext(t, width)
 	rc.Title = "Switch Model"
 	rc.TitleInfo = m.modelTypeRadioView()
+
+	if m.isOnboarding {
+		titleText := t.Dialog.PrimaryText.Render("To start, let's choose a provider and model.")
+		rc.AddPart(titleText)
+	}
+
 	inputView := t.Dialog.InputPrompt.Render(m.input.View())
 	rc.AddPart(inputView)
+
 	listView := t.Dialog.List.Height(m.list.Height()).Render(m.list.Render())
 	rc.AddPart(listView)
+
 	rc.Help = m.help.View(m)
 
-	view := rc.Render()
-
 	cur := m.Cursor()
-	DrawCenterCursor(scr, area, view, cur)
+
+	if m.isOnboarding {
+		rc.Title = ""
+		rc.TitleInfo = ""
+		rc.IsOnboarding = true
+		view := rc.Render()
+		DrawOnboardingCursor(scr, area, view, cur)
+
+		// FIXME(@andreynering): Figure it out how to properly fix this
+		if cur != nil {
+			cur.Y -= 1
+			cur.X -= 1
+		}
+	} else {
+		view := rc.Render()
+		DrawCenterCursor(scr, area, view, cur)
+	}
 	return cur
 }
 
