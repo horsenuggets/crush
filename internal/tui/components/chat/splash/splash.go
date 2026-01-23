@@ -20,7 +20,6 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/copilot"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/hyper"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/models"
-	"github.com/charmbracelet/crush/internal/tui/components/logo"
 	lspcomponent "github.com/charmbracelet/crush/internal/tui/components/lsp"
 	"github.com/charmbracelet/crush/internal/tui/components/mcp"
 	"github.com/charmbracelet/crush/internal/tui/exp/list"
@@ -704,25 +703,9 @@ func (s *splashCmp) infoSection() string {
 func (s *splashCmp) logoBlock() string {
 	t := styles.CurrentTheme()
 	logoStyle := t.S().Base.Padding(0, 2).Width(s.width)
-	if s.isSmallScreen() {
-		// If the width is too small, render a smaller version of the logo
-		// NOTE: 20 is not correct because [splashCmp.height] is not the
-		// *actual* window height, instead, it is the height of the splash
-		// component and that depends on other variables like compact mode and
-		// the height of the editor.
-		return logoStyle.Render(
-			logo.SmallRender(s.width - logoStyle.GetHorizontalFrameSize()),
-		)
-	}
+	// Render minimal header instead of large logo
 	return logoStyle.Render(
-		logo.Render(version.Version, false, logo.Opts{
-			FieldColor:   t.Primary,
-			TitleColorA:  t.Secondary,
-			TitleColorB:  t.Primary,
-			CharmColor:   t.Secondary,
-			VersionColor: t.Primary,
-			Width:        s.width - logoStyle.GetHorizontalFrameSize(),
-		}),
+		t.S().Muted.Render(version.Version),
 	)
 }
 
