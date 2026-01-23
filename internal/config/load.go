@@ -18,6 +18,7 @@ import (
 
 	"github.com/charmbracelet/catwalk/pkg/catwalk"
 	"github.com/charmbracelet/crush/internal/agent/hyper"
+	"github.com/charmbracelet/crush/internal/agent/providers/claudecli"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/env"
 	"github.com/charmbracelet/crush/internal/fsext"
@@ -280,7 +281,7 @@ func (c *Config) configureProviders(env env.Env, resolver VariableResolver, know
 		if providerConfig.Type == "" {
 			providerConfig.Type = catwalk.TypeOpenAICompat
 		}
-		if !slices.Contains(catwalk.KnownProviderTypes(), providerConfig.Type) && providerConfig.Type != hyper.Name {
+		if !slices.Contains(catwalk.KnownProviderTypes(), providerConfig.Type) && providerConfig.Type != hyper.Name && providerConfig.Type != claudecli.Name {
 			slog.Warn("Skipping custom provider due to unsupported provider type", "provider", id)
 			c.Providers.Del(id)
 			continue
@@ -294,10 +295,13 @@ func (c *Config) configureProviders(env env.Env, resolver VariableResolver, know
 		if providerConfig.APIKey == "" {
 			slog.Warn("Provider is missing API key, this might be OK for local providers", "provider", id)
 		}
-		if providerConfig.BaseURL == "" {
-			slog.Warn("Skipping custom provider due to missing API endpoint", "provider", id)
-			c.Providers.Del(id)
-			continue
+		// Claude CLI provider doesn't require BaseURL (it uses local executable)
+		if providerConfig.Type != claudecli.Name {
+			if providerConfig.BaseURL == "" {
+				slog.Warn("Skipping custom provider due to missing API endpoint", "provider", id)
+				c.Providers.Del(id)
+				continue
+			}
 		}
 		if len(providerConfig.Models) == 0 {
 			slog.Warn("Skipping custom provider because the provider has no models", "provider", id)
@@ -308,11 +312,14 @@ func (c *Config) configureProviders(env env.Env, resolver VariableResolver, know
 		if apiKey == "" || err != nil {
 			slog.Warn("Provider is missing API key, this might be OK for local providers", "provider", id)
 		}
-		baseURL, err := resolver.ResolveValue(providerConfig.BaseURL)
-		if baseURL == "" || err != nil {
-			slog.Warn("Skipping custom provider due to missing API endpoint", "provider", id, "error", err)
-			c.Providers.Del(id)
-			continue
+		// Skip BaseURL resolution for Claude CLI provider
+		if providerConfig.Type != claudecli.Name {
+			baseURL, err := resolver.ResolveValue(providerConfig.BaseURL)
+			if baseURL == "" || err != nil {
+				slog.Warn("Skipping custom provider due to missing API endpoint", "provider", id, "error", err)
+				c.Providers.Del(id)
+				continue
+			}
 		}
 
 		for k, v := range providerConfig.ExtraHeaders {

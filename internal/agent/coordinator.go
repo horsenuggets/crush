@@ -19,6 +19,7 @@ import (
 	"github.com/charmbracelet/catwalk/pkg/catwalk"
 	"github.com/charmbracelet/crush/internal/agent/hyper"
 	"github.com/charmbracelet/crush/internal/agent/prompt"
+	"github.com/charmbracelet/crush/internal/agent/providers/claudecli"
 	"github.com/charmbracelet/crush/internal/agent/tools"
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/csync"
@@ -700,6 +701,22 @@ func (c *coordinator) buildHyperProvider(baseURL, apiKey string) (fantasy.Provid
 	return hyper.New(opts...)
 }
 
+func (c *coordinator) buildClaudeCLIProvider(providerCfg config.ProviderConfig) (fantasy.Provider, error) {
+	var opts []claudecli.Option
+
+	// Use custom executable path if configured
+	if providerCfg.BaseURL != "" {
+		opts = append(opts, claudecli.WithExecutablePath(providerCfg.BaseURL))
+	}
+
+	// Set working directory
+	if c.cfg.WorkingDir() != "" {
+		opts = append(opts, claudecli.WithWorkingDir(c.cfg.WorkingDir()))
+	}
+
+	return claudecli.New(opts...)
+}
+
 func (c *coordinator) isAnthropicThinking(model config.SelectedModel) bool {
 	if model.Think {
 		return true
@@ -762,6 +779,8 @@ func (c *coordinator) buildProvider(providerCfg config.ProviderConfig, model con
 		return c.buildOpenaiCompatProvider(baseURL, apiKey, headers, providerCfg.ExtraBody, providerCfg.ID, isSubAgent)
 	case hyper.Name:
 		return c.buildHyperProvider(baseURL, apiKey)
+	case claudecli.Name:
+		return c.buildClaudeCLIProvider(providerCfg)
 	default:
 		return nil, fmt.Errorf("provider type not supported: %q", providerCfg.Type)
 	}
