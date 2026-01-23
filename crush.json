@@ -33,26 +33,26 @@
     },
     "claude-cli": {
       "id": "claude-cli",
-      "name": "Claude CLI (Max Subscription)",
+      "name": "Claude Subscription",
       "type": "claude-cli",
       "models": [
         {
           "id": "opus",
-          "name": "Opus 4.5 (Max)",
+          "name": "Opus 4.5 (Subscription)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
         },
         {
           "id": "sonnet",
-          "name": "Sonnet 4 (Max)",
+          "name": "Sonnet 4 (Subscription)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
         },
         {
           "id": "haiku",
-          "name": "Haiku 3.5 (Max)",
+          "name": "Haiku 3.5 (Subscription)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
@@ -68,43 +68,6 @@
     "small": {
       "model": "haiku",
       "provider": "claude-cli"
-    }
-  },
-  "lsp": {
-    "gopls": {
-      "options": {
-        "gofumpt": true,
-        "codelenses": {
-          "gc_details": true,
-          "generate": true,
-          "run_govulncheck": true,
-          "test": true,
-          "tidy": true,
-          "upgrade_dependency": true
-        },
-        "hints": {
-          "assignVariableTypes": true,
-          "compositeLiteralFields": true,
-          "compositeLiteralTypes": true,
-          "constantValues": true,
-          "functionTypeParameters": true,
-          "parameterNames": true,
-          "rangeVariableTypes": true
-        },
-        "analyses": {
-          "nilness": true,
-          "unusedparams": true,
-          "unusedvariable": true,
-          "unusedwrite": true,
-          "useany": true
-        },
-        "staticcheck": true,
-        "directoryFilters": [
-          "-.git",
-          "-node_modules"
-        ],
-        "semanticTokens": true
-      }
     }
   }
 }
