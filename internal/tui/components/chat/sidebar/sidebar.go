@@ -123,16 +123,7 @@ func (m *sidebarCmp) View() string {
 		style = style.PaddingTop(0)
 	}
 
-	if !m.compactMode {
-		if m.height > LogoHeightBreakpoint {
-			parts = append(parts, m.logo)
-		} else {
-			// Use a smaller logo for smaller screens
-			parts = append(parts,
-				logo.SmallRender(m.width-style.GetHorizontalFrameSize()),
-				"")
-		}
-	}
+	// Logo disabled to reduce branding
 
 	if !m.compactMode && m.session.ID != "" {
 		parts = append(parts, t.S().Muted.Render(m.session.Title), "")
