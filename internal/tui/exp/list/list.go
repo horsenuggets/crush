@@ -85,7 +85,7 @@ const (
 
 const (
 	ItemNotFound              = -1
-	ViewportDefaultScrollSize = 5
+	ViewportDefaultScrollSize = 2
 )
 
 type renderedItem struct {
