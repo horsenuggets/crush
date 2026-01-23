@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/db"
+	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/projects"
 	"github.com/charmbracelet/crush/internal/stringext"
@@ -200,6 +201,13 @@ func setupApp(cmd *cobra.Command) (*app.App, error) {
 	cfg, err := config.Init(cwd, dataDir, debug)
 	if err != nil {
 		return nil, err
+	}
+
+	// Apply theme from configuration
+	if cfg.Options != nil && cfg.Options.TUI != nil && cfg.Options.TUI.Theme != "" {
+		if err := styles.DefaultManager().SetTheme(cfg.Options.TUI.Theme); err != nil {
+			slog.Warn("Failed to set theme", "theme", cfg.Options.TUI.Theme, "error", err)
+		}
 	}
 
 	if cfg.Permissions == nil {

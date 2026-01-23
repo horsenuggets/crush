@@ -1,11 +1,11 @@
 # Claude CLI Provider
 
-This provider allows Crush to use the local Claude CLI executable, enabling use of a Claude Max subscription instead of paying for API access.
+This provider allows Crush to use the local Claude CLI executable, enabling use of your Claude subscription (Basic, Plus, or Max) instead of paying for API access.
 
 ## Prerequisites
 
 - Claude CLI must be installed and available in your PATH
-- You must be logged into the Claude CLI with your Max subscription
+- You must be logged into the Claude CLI with your subscription
 
 ## Configuration
 
@@ -16,26 +16,26 @@ Add the following to your Crush configuration file (`~/.config/crush/config.json
   "providers": {
     "claude-cli": {
       "id": "claude-cli",
-      "name": "Claude CLI (Max Subscription)",
+      "name": "Claude Subscription",
       "type": "claude-cli",
       "models": [
         {
           "id": "opus",
-          "name": "Claude Opus (CLI)",
+          "name": "Opus 4.5 (Subscription)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
         },
         {
           "id": "sonnet",
-          "name": "Claude Sonnet (CLI)",
+          "name": "Sonnet 4 (Subscription)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
         },
         {
           "id": "haiku",
-          "name": "Claude Haiku (CLI)",
+          "name": "Haiku 3.5 (Subscription)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
