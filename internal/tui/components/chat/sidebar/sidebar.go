@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/catwalk/pkg/catwalk"
 	"github.com/charmbracelet/crush/internal/config"
+	crushctx "github.com/charmbracelet/crush/internal/context"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/diff"
 	"github.com/charmbracelet/crush/internal/fsext"
@@ -22,6 +23,7 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/core"
 	"github.com/charmbracelet/crush/internal/tui/components/core/layout"
 	"github.com/charmbracelet/crush/internal/tui/components/files"
+	"github.com/charmbracelet/crush/internal/tui/components/instances"
 	"github.com/charmbracelet/crush/internal/tui/components/logo"
 	lspcomponent "github.com/charmbracelet/crush/internal/tui/components/lsp"
 	"github.com/charmbracelet/crush/internal/tui/components/mcp"
@@ -65,22 +67,24 @@ type Sidebar interface {
 }
 
 type sidebarCmp struct {
-	width, height int
-	session       session.Session
-	logo          string
-	cwd           string
-	lspClients    *csync.Map[string, *lsp.Client]
-	compactMode   bool
-	history       history.Service
-	files         *csync.Map[string, SessionFile]
+	width, height  int
+	session        session.Session
+	logo           string
+	cwd            string
+	lspClients     *csync.Map[string, *lsp.Client]
+	compactMode    bool
+	history        history.Service
+	files          *csync.Map[string, SessionFile]
+	contextManager *crushctx.Manager
 }
 
-func New(history history.Service, lspClients *csync.Map[string, *lsp.Client], compact bool) Sidebar {
+func New(history history.Service, lspClients *csync.Map[string, *lsp.Client], contextManager *crushctx.Manager, compact bool) Sidebar {
 	return &sidebarCmp{
-		lspClients:  lspClients,
-		history:     history,
-		compactMode: compact,
-		files:       csync.NewMap[string, SessionFile](),
+		lspClients:     lspClients,
+		history:        history,
+		compactMode:    compact,
+		files:          csync.NewMap[string, SessionFile](),
+		contextManager: contextManager,
 	}
 }
 
@@ -159,6 +163,10 @@ func (m *sidebarCmp) View() string {
 			"",
 			m.mcpBlock(),
 		)
+		// Show other instances if any
+		if instancesContent := m.instancesBlock(); instancesContent != "" {
+			parts = append(parts, "", instancesContent)
+		}
 	}
 
 	return style.Render(
@@ -494,6 +502,24 @@ func (m *sidebarCmp) mcpBlock() string {
 		ShowSection: true,
 		SectionName: core.Section("MCPs", m.getMaxWidth()),
 	}, true)
+}
+
+func (m *sidebarCmp) instancesBlock() string {
+	if m.contextManager == nil {
+		return ""
+	}
+
+	others, err := m.contextManager.OtherInstances()
+	if err != nil || len(others) == 0 {
+		return ""
+	}
+
+	return instances.RenderInstancesBlock(others, instances.RenderOptions{
+		MaxWidth:    m.getMaxWidth(),
+		MaxItems:    5,
+		ShowSection: true,
+		SectionName: core.Section("Instances", m.getMaxWidth()),
+	}, m.compactMode)
 }
 
 func formatTokensAndCost(tokens, contextWindow int64, cost float64) string {

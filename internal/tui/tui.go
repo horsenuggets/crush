@@ -29,6 +29,7 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/commands"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/filepicker"
+	"github.com/charmbracelet/crush/internal/tui/components/dialogs/instances"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/models"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/permissions"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/quit"
@@ -547,6 +548,23 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 			},
 		)
 		return tea.Sequence(cmds...)
+	case key.Matches(msg, a.keyMap.Instances):
+		if a.dialog.ActiveDialogID() == instances.InstancesDialogID {
+			return util.CmdHandler(dialogs.CloseDialogMsg{})
+		}
+		if a.dialog.HasDialogs() && a.dialog.ActiveDialogID() != commands.CommandsDialogID {
+			return nil
+		}
+		return func() tea.Msg {
+			otherInstances, _ := a.app.ListOtherInstances()
+			currentID := ""
+			if a.app.ContextManager != nil {
+				currentID = a.app.ContextManager.InstanceID()
+			}
+			return dialogs.OpenDialogMsg{
+				Model: instances.NewInstancesDialog(otherInstances, currentID),
+			}
+		}
 	case key.Matches(msg, a.keyMap.Suspend):
 		if a.app.AgentCoordinator != nil && a.app.AgentCoordinator.IsBusy() {
 			return util.ReportWarn("Agent is busy, please wait...")

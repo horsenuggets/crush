@@ -21,6 +21,7 @@ import (
 	"github.com/charmbracelet/crush/internal/agent"
 	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
 	"github.com/charmbracelet/crush/internal/config"
+	crushctx "github.com/charmbracelet/crush/internal/context"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/format"
@@ -58,6 +59,9 @@ type App struct {
 
 	LSPClients *csync.Map[string, *lsp.Client]
 
+	// ContextManager handles shared state between parallel Crush instances.
+	ContextManager *crushctx.Manager
+
 	config *config.Config
 
 	serviceEventsWG *sync.WaitGroup
@@ -82,12 +86,20 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 		allowedTools = cfg.Permissions.AllowedTools
 	}
 
+	// Initialize context manager for parallel instance tracking
+	ctxManager, err := crushctx.NewManager(cfg.WorkingDir())
+	if err != nil {
+		slog.Warn("Failed to create context manager", "error", err)
+		// Non-fatal: continue without context sharing
+	}
+
 	app := &App{
-		Sessions:    sessions,
-		Messages:    messages,
-		History:     files,
-		Permissions: permission.NewPermissionService(cfg.WorkingDir(), skipPermissionsRequests, allowedTools),
-		LSPClients:  csync.NewMap[string, *lsp.Client](),
+		Sessions:       sessions,
+		Messages:       messages,
+		History:        files,
+		Permissions:    permission.NewPermissionService(cfg.WorkingDir(), skipPermissionsRequests, allowedTools),
+		LSPClients:     csync.NewMap[string, *lsp.Client](),
+		ContextManager: ctxManager,
 
 		globalCtx: ctx,
 
@@ -96,6 +108,17 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 		events:          make(chan tea.Msg, 100),
 		serviceEventsWG: &sync.WaitGroup{},
 		tuiWG:           &sync.WaitGroup{},
+	}
+
+	// Register this instance in the shared context
+	if ctxManager != nil {
+		if err := ctxManager.Register(); err != nil {
+			slog.Warn("Failed to register in shared context", "error", err)
+		} else {
+			slog.Info("Registered in shared context", "instance_id", ctxManager.InstanceID())
+			// Start heartbeat goroutine
+			go app.runContextHeartbeat(ctx)
+		}
 	}
 
 	app.setupEvents()
@@ -505,6 +528,13 @@ func (app *App) Shutdown() {
 	start := time.Now()
 	defer func() { slog.Info("Shutdown took " + time.Since(start).String()) }()
 
+	// Unregister from shared context
+	if app.ContextManager != nil {
+		if err := app.ContextManager.Unregister(); err != nil {
+			slog.Warn("Failed to unregister from shared context", "error", err)
+		}
+	}
+
 	// First, cancel all agents and wait for them to finish. This must complete
 	// before closing the DB so agents can finish writing their state.
 	if app.AgentCoordinator != nil {
@@ -560,4 +590,49 @@ func (app *App) checkForUpdates(ctx context.Context) {
 		LatestVersion:  info.Latest,
 		IsDevelopment:  info.IsDevelopment(),
 	}
+}
+
+// runContextHeartbeat periodically updates the shared context to indicate this instance is alive.
+func (app *App) runContextHeartbeat(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if app.ContextManager != nil {
+				if err := app.ContextManager.Heartbeat(); err != nil {
+					slog.Debug("Failed to send context heartbeat", "error", err)
+				}
+			}
+		}
+	}
+}
+
+// UpdateContextWorkingDir updates the working directory in the shared context.
+func (app *App) UpdateContextWorkingDir(workingDir string) {
+	if app.ContextManager != nil {
+		if err := app.ContextManager.UpdateWorkingDir(workingDir); err != nil {
+			slog.Debug("Failed to update context working dir", "error", err)
+		}
+	}
+}
+
+// UpdateContextTask updates the current task in the shared context.
+func (app *App) UpdateContextTask(task string) {
+	if app.ContextManager != nil {
+		if err := app.ContextManager.UpdateTask(task); err != nil {
+			slog.Debug("Failed to update context task", "error", err)
+		}
+	}
+}
+
+// ListOtherInstances returns a list of other active Crush instances.
+func (app *App) ListOtherInstances() ([]crushctx.Instance, error) {
+	if app.ContextManager == nil {
+		return nil, nil
+	}
+	return app.ContextManager.OtherInstances()
 }
