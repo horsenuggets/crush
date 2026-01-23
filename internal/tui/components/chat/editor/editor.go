@@ -3,6 +3,7 @@ package editor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/quit"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/tui/util"
+	"github.com/charmbracelet/crush/internal/voice"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/editor"
 )
@@ -79,6 +81,10 @@ type editorCmp struct {
 	currentQuery          string
 	completionsStartIndex int
 	isCompletionsOpen     bool
+
+	// Voice input
+	voiceInput    *voice.VoiceInput
+	voiceRecoding bool
 }
 
 var DeleteKeyMaps = DeleteAttachmentKeyMaps{
@@ -100,6 +106,16 @@ const maxFileResults = 25
 
 type OpenEditorMsg struct {
 	Text string
+}
+
+// VoiceTranscriptionMsg is sent when voice transcription completes.
+type VoiceTranscriptionMsg struct {
+	Text string
+}
+
+// VoiceErrorMsg is sent when voice transcription fails.
+type VoiceErrorMsg struct {
+	Error error
 }
 
 func (m *editorCmp) openEditor(value string) tea.Cmd {
@@ -252,6 +268,24 @@ func (m *editorCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 	case OpenEditorMsg:
 		m.textarea.SetValue(msg.Text)
 		m.textarea.MoveToEnd()
+	case VoiceTranscriptionMsg:
+		// Insert transcribed text at cursor
+		slog.Debug("VoiceTranscriptionMsg received", "text", msg.Text, "length", len(msg.Text))
+		if msg.Text != "" {
+			current := m.textarea.Value()
+			if current != "" && !strings.HasSuffix(current, " ") && !strings.HasSuffix(current, "\n") {
+				m.textarea.InsertRune(' ')
+			}
+			for _, r := range msg.Text {
+				m.textarea.InsertRune(r)
+			}
+			slog.Debug("Text inserted into textarea", "newValue", m.textarea.Value())
+		}
+		m.voiceRecoding = false
+		return m, nil
+	case VoiceErrorMsg:
+		m.voiceRecoding = false
+		return m, util.ReportError(msg.Error)
 	case tea.PasteMsg:
 		if strings.Count(msg.Content, "\n") > pasteLinesThreshold {
 			content := []byte(msg.Content)
@@ -355,6 +389,10 @@ func (m *editorCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		if key.Matches(msg, m.keyMap.Newline) {
 			m.textarea.InsertRune('\n')
 			cmds = append(cmds, util.CmdHandler(completions.CloseCompletionsMsg{}))
+		}
+		// Handle voice input toggle
+		if key.Matches(msg, m.keyMap.VoiceInput) {
+			return m, m.toggleVoiceRecording()
 		}
 		// Handle image paste from clipboard
 		if key.Matches(msg, m.keyMap.PasteImage) {
@@ -539,12 +577,14 @@ func (m *editorCmp) randomizePlaceholders() {
 func (m *editorCmp) View() string {
 	t := styles.CurrentTheme()
 	// Update placeholder
-	if m.app.AgentCoordinator != nil && m.app.AgentCoordinator.IsBusy() {
+	if m.voiceRecoding {
+		m.textarea.Placeholder = "Recording... (Ctrl+U to stop)"
+	} else if m.app.AgentCoordinator != nil && m.app.AgentCoordinator.IsBusy() {
 		m.textarea.Placeholder = m.workingPlaceholder
 	} else {
 		m.textarea.Placeholder = m.readyPlaceholder
 	}
-	if m.app.Permissions.SkipRequests() {
+	if m.app.Permissions.SkipRequests() && !m.voiceRecoding {
 		m.textarea.Placeholder = "Yolo mode!"
 	}
 	if len(m.attachments) == 0 {
@@ -773,4 +813,51 @@ func filepathToFile(name string) ([]byte, string, error) {
 func mimeOf(content []byte) string {
 	mimeBufferSize := min(512, len(content))
 	return http.DetectContentType(content[:mimeBufferSize])
+}
+
+// toggleVoiceRecording starts or stops voice recording.
+func (m *editorCmp) toggleVoiceRecording() tea.Cmd {
+	slog.Debug("toggleVoiceRecording called", "isRecording", m.voiceRecoding)
+
+	// Initialize voice input if not already done
+	if m.voiceInput == nil {
+		vi, err := voice.New("")
+		if err != nil {
+			slog.Debug("Voice input not available", "error", err)
+			return util.ReportWarn("Voice input not available: " + err.Error())
+		}
+		m.voiceInput = vi
+		slog.Debug("Voice input initialized")
+	}
+
+	if m.voiceRecoding {
+		// Stop recording and transcribe
+		slog.Debug("Stopping recording and starting transcription")
+		m.voiceRecoding = false
+		return tea.Sequence(
+			util.CmdHandler(util.InfoMsg{Msg: "Transcribing...", Type: util.InfoTypeInfo}),
+			func() tea.Msg {
+				ctx := context.Background()
+				slog.Debug("Calling StopRecording")
+				text, err := m.voiceInput.StopRecording(ctx, "")
+				if err != nil {
+					slog.Debug("Voice transcription error", "error", err)
+					return VoiceErrorMsg{Error: err}
+				}
+				slog.Debug("Voice transcription complete", "text", text, "length", len(text))
+				return VoiceTranscriptionMsg{Text: text}
+			},
+		)
+	}
+
+	// Start recording
+	slog.Debug("Starting recording")
+	ctx := context.Background()
+	if err := m.voiceInput.StartRecording(ctx); err != nil {
+		slog.Debug("Failed to start recording", "error", err)
+		return util.ReportError(err)
+	}
+	m.voiceRecoding = true
+	slog.Debug("Recording started successfully")
+	return util.ReportInfo("Recording... Press Ctrl+U to stop")
 }
