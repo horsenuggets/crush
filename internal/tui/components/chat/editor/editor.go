@@ -527,7 +527,9 @@ func (m *editorCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 }
 
 func (m *editorCmp) setEditorPrompt() {
-	if m.app.Permissions.SkipRequests() {
+	cfg := m.app.Config()
+	showYolo := cfg.Options == nil || cfg.Options.TUI == nil || cfg.Options.TUI.ShowYoloIndicator
+	if m.app.Permissions.SkipRequests() && showYolo {
 		m.textarea.SetPromptFunc(4, yoloPromptFunc)
 		return
 	}

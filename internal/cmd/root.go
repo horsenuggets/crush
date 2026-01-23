@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/db"
+	"github.com/charmbracelet/crush/internal/tui/exp/list"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/projects"
@@ -203,10 +204,20 @@ func setupApp(cmd *cobra.Command) (*app.App, error) {
 		return nil, err
 	}
 
-	// Apply theme from configuration
-	if cfg.Options != nil && cfg.Options.TUI != nil && cfg.Options.TUI.Theme != "" {
-		if err := styles.DefaultManager().SetTheme(cfg.Options.TUI.Theme); err != nil {
-			slog.Warn("Failed to set theme", "theme", cfg.Options.TUI.Theme, "error", err)
+	// Apply TUI configuration
+	if cfg.Options != nil && cfg.Options.TUI != nil {
+		mgr := styles.DefaultManager()
+		if cfg.Options.TUI.Theme != "" {
+			if err := mgr.SetTheme(cfg.Options.TUI.Theme); err != nil {
+				slog.Warn("Failed to set theme", "theme", cfg.Options.TUI.Theme, "error", err)
+			}
+		}
+		if cfg.Options.TUI.CursorStyle != "" {
+			mgr.SetCursorStyle(cfg.Options.TUI.CursorStyle)
+		}
+		if cfg.Options.TUI.ScrollStep > 0 {
+			mgr.SetScrollStep(cfg.Options.TUI.ScrollStep)
+			list.ScrollStep = cfg.Options.TUI.ScrollStep
 		}
 	}
 
