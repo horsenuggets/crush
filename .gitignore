@@ -51,4 +51,5 @@ manpages/
 completions/crush.*sh
 .prettierignore
 
-.local
+.local/
+.ralph/
