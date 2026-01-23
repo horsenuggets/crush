@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -151,6 +152,16 @@ func (m *editorCmp) send() tea.Cmd {
 	case "exit", "quit":
 		m.textarea.Reset()
 		return util.CmdHandler(dialogs.OpenDialogMsg{Model: quit.NewQuitDialog()})
+	}
+
+	// Handle shell commands with ! prefix
+	if strings.HasPrefix(value, "!") {
+		cmdStr := strings.TrimPrefix(value, "!")
+		cmdStr = strings.TrimSpace(cmdStr)
+		if cmdStr != "" {
+			m.textarea.Reset()
+			return util.ExecShell(context.Background(), cmdStr, nil)
+		}
 	}
 
 	attachments := m.attachments
