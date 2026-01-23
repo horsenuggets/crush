@@ -84,9 +84,11 @@ const (
 )
 
 const (
-	ItemNotFound              = -1
-	ViewportDefaultScrollSize = 2
+	ItemNotFound = -1
 )
+
+// ScrollStep is the number of lines to scroll. Can be set from config.
+var ScrollStep = 2
 
 type renderedItem struct {
 	view   string
@@ -286,9 +288,9 @@ func (l *list[T]) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		if l.focused {
 			switch {
 			case key.Matches(msg, l.keyMap.Down):
-				return l, l.MoveDown(ViewportDefaultScrollSize)
+				return l, l.MoveDown(ScrollStep)
 			case key.Matches(msg, l.keyMap.Up):
-				return l, l.MoveUp(ViewportDefaultScrollSize)
+				return l, l.MoveUp(ScrollStep)
 			case key.Matches(msg, l.keyMap.DownOneItem):
 				return l, l.SelectItemBelow()
 			case key.Matches(msg, l.keyMap.UpOneItem):
@@ -327,9 +329,9 @@ func (l *list[T]) handleMouseWheel(msg tea.MouseWheelMsg) (util.Model, tea.Cmd) 
 	var cmd tea.Cmd
 	switch msg.Button {
 	case tea.MouseWheelDown:
-		cmd = l.MoveDown(ViewportDefaultScrollSize)
+		cmd = l.MoveDown(ScrollStep)
 	case tea.MouseWheelUp:
-		cmd = l.MoveUp(ViewportDefaultScrollSize)
+		cmd = l.MoveUp(ScrollStep)
 	}
 	return l, cmd
 }

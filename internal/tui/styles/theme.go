@@ -188,7 +188,7 @@ func (t *Theme) buildStyles() *Styles {
 			},
 			Cursor: textinput.CursorStyle{
 				Color: t.Secondary,
-				Shape: tea.CursorBar,
+				Shape: DefaultManager().CursorStyle(),
 				Blink: true,
 			},
 		},
@@ -213,7 +213,7 @@ func (t *Theme) buildStyles() *Styles {
 			},
 			Cursor: textarea.CursorStyle{
 				Color: t.Secondary,
-				Shape: tea.CursorBar,
+				Shape: DefaultManager().CursorStyle(),
 				Blink: true,
 			},
 		},
@@ -498,8 +498,10 @@ func (t *Theme) buildStyles() *Styles {
 }
 
 type Manager struct {
-	themes  map[string]*Theme
-	current *Theme
+	themes      map[string]*Theme
+	current     *Theme
+	cursorStyle tea.CursorShape
+	scrollStep  int
 }
 
 var (
@@ -564,6 +566,53 @@ func (m *Manager) List() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// SetCursorStyle sets the cursor style from a string (bar, block, underline).
+func (m *Manager) SetCursorStyle(style string) {
+	switch strings.ToLower(style) {
+	case "block":
+		m.cursorStyle = tea.CursorBlock
+	case "underline":
+		m.cursorStyle = tea.CursorUnderline
+	default:
+		m.cursorStyle = tea.CursorBar
+	}
+}
+
+// CursorStyle returns the configured cursor style.
+func (m *Manager) CursorStyle() tea.CursorShape {
+	if m.cursorStyle == 0 {
+		return tea.CursorBar // default
+	}
+	return m.cursorStyle
+}
+
+// SetScrollStep sets the scroll step size.
+func (m *Manager) SetScrollStep(step int) {
+	if step < 1 {
+		step = 1
+	} else if step > 10 {
+		step = 10
+	}
+	m.scrollStep = step
+}
+
+// ScrollStep returns the configured scroll step size.
+func (m *Manager) ScrollStep() int {
+	if m.scrollStep == 0 {
+		return 2 // default
+	}
+	return m.scrollStep
+}
+
+// ReloadThemes resets all theme styles so they will be rebuilt on next access.
+// This allows hot-reloading of cursor style and other theme options.
+func (m *Manager) ReloadThemes() {
+	for _, theme := range m.themes {
+		theme.styles = nil
+		theme.stylesOnce = sync.Once{}
+	}
 }
 
 // ParseHex converts hex string to color

@@ -197,9 +197,12 @@ type LSPConfig struct {
 }
 
 type TUIOptions struct {
-	CompactMode bool   `json:"compact_mode,omitempty" jsonschema:"description=Enable compact mode for the TUI interface,default=false"`
-	DiffMode    string `json:"diff_mode,omitempty" jsonschema:"description=Diff mode for the TUI interface,enum=unified,enum=split"`
-	Theme       string `json:"theme,omitempty" jsonschema:"description=Color theme for the TUI interface,enum=charmtone,enum=dark,enum=light,default=charmtone"`
+	CompactMode       bool   `json:"compact_mode,omitempty" jsonschema:"description=Enable compact mode for the TUI interface,default=false"`
+	DiffMode          string `json:"diff_mode,omitempty" jsonschema:"description=Diff mode for the TUI interface,enum=unified,enum=split"`
+	Theme             string `json:"theme,omitempty" jsonschema:"description=Color theme for the TUI interface,enum=charmtone,enum=dark,enum=light,default=charmtone"`
+	CursorStyle       string `json:"cursor_style,omitempty" jsonschema:"description=Cursor style in the editor,enum=bar,enum=block,enum=underline,default=bar"`
+	ScrollStep        int    `json:"scroll_step,omitempty" jsonschema:"description=Number of lines to scroll at a time,default=2,minimum=1,maximum=10"`
+	ShowYoloIndicator bool   `json:"show_yolo_indicator,omitempty" jsonschema:"description=Show yolo mode indicator in status bar,default=true"`
 
 	Completions Completions   `json:"completions,omitzero" jsonschema:"description=Completions UI options"`
 	Voice       *VoiceOptions `json:"voice,omitempty" jsonschema:"description=Voice input options using OpenAI Whisper"`
