@@ -141,7 +141,7 @@ func New(app *app.App) ChatPage {
 		app:         app,
 		keyMap:      DefaultKeyMap(),
 		header:      header.New(app.LSPClients),
-		sidebar:     sidebar.New(app.History, app.LSPClients, false),
+		sidebar:     sidebar.New(app.History, app.LSPClients, app.ContextManager, false),
 		chat:        chat.New(app),
 		editor:      editor.New(app),
 		splash:      splash.New(),
@@ -160,6 +160,15 @@ func (p *chatPage) Init() tea.Cmd {
 	p.forceCompact = compact
 	p.sidebar.SetCompactMode(p.compact)
 
+	var cmds []tea.Cmd
+	cmds = append(cmds,
+		p.header.Init(),
+		p.sidebar.Init(),
+		p.chat.Init(),
+		p.editor.Init(),
+		p.splash.Init(),
+	)
+
 	// Set splash state based on config
 	if !config.HasInitialDataConfig() {
 		// First-time setup: show model selection
@@ -175,15 +184,12 @@ func (p *chatPage) Init() tea.Cmd {
 		// Ready to chat: focus editor, splash in background
 		p.focusedPane = PanelTypeEditor
 		p.splashFullScreen = false
+
+		// Try to resume the most recent session for this working directory
+		cmds = append(cmds, p.tryResumeByWorkingDir())
 	}
 
-	return tea.Batch(
-		p.header.Init(),
-		p.sidebar.Init(),
-		p.chat.Init(),
-		p.editor.Init(),
-		p.splash.Init(),
-	)
+	return tea.Batch(cmds...)
 }
 
 func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
@@ -330,7 +336,9 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		return p, tea.Batch(cmds...)
 	case filepicker.FilePickedMsg,
 		completions.CompletionsClosedMsg,
-		completions.SelectCompletionMsg:
+		completions.SelectCompletionMsg,
+		editor.VoiceTranscriptionMsg,
+		editor.VoiceErrorMsg:
 		u, cmd := p.editor.Update(msg)
 		p.editor = u.(editor.Editor)
 		cmds = append(cmds, cmd)
@@ -870,6 +878,21 @@ func (p *chatPage) setSession(sess session.Session) tea.Cmd {
 	return tea.Sequence(cmds...)
 }
 
+// tryResumeByWorkingDir attempts to resume the most recent session for the current working directory.
+// Returns a cmd that will load the session if found, or nil if no session exists.
+func (p *chatPage) tryResumeByWorkingDir() tea.Cmd {
+	return func() tea.Msg {
+		workingDir := config.Get().WorkingDir()
+		sessions, err := p.app.Sessions.ListByWorkingDir(context.Background(), workingDir)
+		if err != nil || len(sessions) == 0 {
+			return nil
+		}
+		// Get the most recent session (sessions should be ordered by updated_at desc)
+		mostRecent := sessions[0]
+		return chat.SessionSelectedMsg(mostRecent)
+	}
+}
+
 func (p *chatPage) changeFocus() tea.Cmd {
 	if p.session.ID == "" {
 		return nil
@@ -1307,10 +1330,15 @@ func (p *chatPage) Help() help.KeyMap {
 				// Non-zero flags mean we have at least key disambiguation.
 				newLineBinding.SetHelp("shift+enter", newLineBinding.Help().Desc)
 			}
-			shortList = append(shortList, newLineBinding)
+			voiceBinding := key.NewBinding(
+				key.WithKeys("ctrl+u"),
+				key.WithHelp("ctrl+u", "voice"),
+			)
+			shortList = append(shortList, newLineBinding, voiceBinding)
 			fullList = append(fullList,
 				[]key.Binding{
 					newLineBinding,
+					voiceBinding,
 					key.NewBinding(
 						key.WithKeys("ctrl+f"),
 						key.WithHelp("ctrl+f", "add image"),
