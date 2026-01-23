@@ -52,6 +52,10 @@ func TestModelList_RecentlyUsedSectionAndPrunesInvalid(t *testing.T) {
 	// Pre-initialize logger to os.DevNull to prevent file lock on Windows.
 	log.Setup(os.DevNull, false)
 
+	// Reset provider cache and global config instance to avoid test pollution
+	config.ResetProviders()
+	config.ResetInstance()
+
 	// Isolate config/data paths
 	cfgDir := t.TempDir()
 	dataDir := t.TempDir()
@@ -64,6 +68,18 @@ func TestModelList_RecentlyUsedSectionAndPrunesInvalid(t *testing.T) {
 	initial := map[string]any{
 		"options": map[string]any{
 			"disable_provider_auto_update": true,
+		},
+		// Configure provider p1 so it's recognized during config loading
+		"providers": map[string]any{
+			"p1": map[string]any{
+				"type":     "openai",
+				"api_key":  "test-key",
+				"base_url": "https://test.example.com",
+				"models": []any{
+					map[string]any{"id": "m1", "name": "Model One"},
+					map[string]any{"id": "m2", "name": "Model Two"},
+				},
+			},
 		},
 		"models": map[string]any{
 			"large": map[string]any{
@@ -161,6 +177,10 @@ func TestModelList_PrunesInvalidModelWithinValidProvider(t *testing.T) {
 	// Pre-initialize logger to os.DevNull to prevent file lock on Windows.
 	log.Setup(os.DevNull, false)
 
+	// Reset provider cache and global config instance to avoid test pollution
+	config.ResetProviders()
+	config.ResetInstance()
+
 	// Isolate config/data paths
 	cfgDir := t.TempDir()
 	dataDir := t.TempDir()
@@ -173,6 +193,17 @@ func TestModelList_PrunesInvalidModelWithinValidProvider(t *testing.T) {
 	initial := map[string]any{
 		"options": map[string]any{
 			"disable_provider_auto_update": true,
+		},
+		// Configure provider p1 so it's recognized during config loading
+		"providers": map[string]any{
+			"p1": map[string]any{
+				"type":     "openai",
+				"api_key":  "test-key",
+				"base_url": "https://test.example.com",
+				"models": []any{
+					map[string]any{"id": "m1", "name": "Model One"},
+				},
+			},
 		},
 		"models": map[string]any{
 			"large": map[string]any{
@@ -276,6 +307,10 @@ func TestModelList_AllRecentsInvalid(t *testing.T) {
 	// Pre-initialize logger to os.DevNull to prevent file lock on Windows.
 	log.Setup(os.DevNull, false)
 
+	// Reset provider cache and global config instance to avoid test pollution
+	config.ResetProviders()
+	config.ResetInstance()
+
 	// Isolate config/data paths
 	cfgDir := t.TempDir()
 	dataDir := t.TempDir()
@@ -288,6 +323,17 @@ func TestModelList_AllRecentsInvalid(t *testing.T) {
 	initial := map[string]any{
 		"options": map[string]any{
 			"disable_provider_auto_update": true,
+		},
+		// Configure provider p1 so it's recognized during config loading
+		"providers": map[string]any{
+			"p1": map[string]any{
+				"type":     "openai",
+				"api_key":  "test-key",
+				"base_url": "https://test.example.com",
+				"models": []any{
+					map[string]any{"id": "m1", "name": "Model One"},
+				},
+			},
 		},
 		"models": map[string]any{
 			"large": map[string]any{

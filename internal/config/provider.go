@@ -33,6 +33,17 @@ var (
 	providerErr  error
 )
 
+// ResetProviders resets the provider cache for testing purposes.
+// This should only be used in tests.
+func ResetProviders() {
+	providerOnce = sync.Once{}
+	providerList = nil
+	providerErr = nil
+	// Also reset the catwalk syncer
+	catwalkSyncer = &catwalkSync{}
+	hyperSyncer = &hyperSync{}
+}
+
 // file to cache provider data
 func cachePathFor(name string) string {
 	xdgDataHome := os.Getenv("XDG_DATA_HOME")
