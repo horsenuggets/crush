@@ -8,6 +8,7 @@ INSERT INTO sessions (
     completion_tokens,
     cost,
     summary_message_id,
+    working_dir,
     updated_at,
     created_at
 ) VALUES (
@@ -19,6 +20,7 @@ INSERT INTO sessions (
     ?,
     ?,
     null,
+    ?,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING *;
@@ -58,4 +60,22 @@ WHERE id = ?;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions
+WHERE id = ?;
+
+-- name: GetSessionByWorkingDir :one
+SELECT *
+FROM sessions
+WHERE working_dir = ? AND parent_session_id is NULL
+ORDER BY updated_at DESC
+LIMIT 1;
+
+-- name: ListSessionsByWorkingDir :many
+SELECT *
+FROM sessions
+WHERE working_dir = ? AND parent_session_id is NULL
+ORDER BY updated_at DESC;
+
+-- name: UpdateSessionWorkingDir :exec
+UPDATE sessions
+SET working_dir = ?
 WHERE id = ?;

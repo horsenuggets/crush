@@ -38,6 +38,7 @@ type Session struct {
 	SummaryMessageID string
 	Cost             float64
 	Todos            []Todo
+	WorkingDir       string
 	CreatedAt        int64
 	UpdatedAt        int64
 }
@@ -45,12 +46,16 @@ type Session struct {
 type Service interface {
 	pubsub.Subscriber[Session]
 	Create(ctx context.Context, title string) (Session, error)
+	CreateWithWorkingDir(ctx context.Context, title, workingDir string) (Session, error)
 	CreateTitleSession(ctx context.Context, parentSessionID string) (Session, error)
 	CreateTaskSession(ctx context.Context, toolCallID, parentSessionID, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
+	GetByWorkingDir(ctx context.Context, workingDir string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
+	ListByWorkingDir(ctx context.Context, workingDir string) ([]Session, error)
 	Save(ctx context.Context, session Session) (Session, error)
 	UpdateTitleAndUsage(ctx context.Context, sessionID, title string, promptTokens, completionTokens int64, cost float64) error
+	UpdateWorkingDir(ctx context.Context, sessionID, workingDir string) error
 	Delete(ctx context.Context, id string) error
 
 	// Agent tool session management
@@ -68,6 +73,21 @@ func (s *service) Create(ctx context.Context, title string) (Session, error) {
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:    uuid.New().String(),
 		Title: title,
+	})
+	if err != nil {
+		return Session{}, err
+	}
+	session := s.fromDBItem(dbSession)
+	s.Publish(pubsub.CreatedEvent, session)
+	event.SessionCreated()
+	return session, nil
+}
+
+func (s *service) CreateWithWorkingDir(ctx context.Context, title, workingDir string) (Session, error) {
+	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
+		ID:         uuid.New().String(),
+		Title:      title,
+		WorkingDir: sql.NullString{String: workingDir, Valid: workingDir != ""},
 	})
 	if err != nil {
 		return Session{}, err
@@ -128,6 +148,14 @@ func (s *service) Get(ctx context.Context, id string) (Session, error) {
 	return s.fromDBItem(dbSession), nil
 }
 
+func (s *service) GetByWorkingDir(ctx context.Context, workingDir string) (Session, error) {
+	dbSession, err := s.q.GetSessionByWorkingDir(ctx, sql.NullString{String: workingDir, Valid: workingDir != ""})
+	if err != nil {
+		return Session{}, err
+	}
+	return s.fromDBItem(dbSession), nil
+}
+
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 	todosJSON, err := marshalTodos(session.Todos)
 	if err != nil {
@@ -169,8 +197,28 @@ func (s *service) UpdateTitleAndUsage(ctx context.Context, sessionID, title stri
 	})
 }
 
+// UpdateWorkingDir updates the working directory for a session.
+func (s *service) UpdateWorkingDir(ctx context.Context, sessionID, workingDir string) error {
+	return s.q.UpdateSessionWorkingDir(ctx, db.UpdateSessionWorkingDirParams{
+		ID:         sessionID,
+		WorkingDir: sql.NullString{String: workingDir, Valid: workingDir != ""},
+	})
+}
+
 func (s *service) List(ctx context.Context) ([]Session, error) {
 	dbSessions, err := s.q.ListSessions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sessions := make([]Session, len(dbSessions))
+	for i, dbSession := range dbSessions {
+		sessions[i] = s.fromDBItem(dbSession)
+	}
+	return sessions, nil
+}
+
+func (s *service) ListByWorkingDir(ctx context.Context, workingDir string) ([]Session, error) {
+	dbSessions, err := s.q.ListSessionsByWorkingDir(ctx, sql.NullString{String: workingDir, Valid: workingDir != ""})
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +244,7 @@ func (s service) fromDBItem(item db.Session) Session {
 		SummaryMessageID: item.SummaryMessageID.String,
 		Cost:             item.Cost,
 		Todos:            todos,
+		WorkingDir:       item.WorkingDir.String,
 		CreatedAt:        item.CreatedAt,
 		UpdatedAt:        item.UpdatedAt,
 	}
