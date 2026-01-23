@@ -199,10 +199,17 @@ type LSPConfig struct {
 type TUIOptions struct {
 	CompactMode bool   `json:"compact_mode,omitempty" jsonschema:"description=Enable compact mode for the TUI interface,default=false"`
 	DiffMode    string `json:"diff_mode,omitempty" jsonschema:"description=Diff mode for the TUI interface,enum=unified,enum=split"`
-	// Here we can add themes later or any TUI related options
-	//
+	Theme       string `json:"theme,omitempty" jsonschema:"description=Color theme for the TUI interface,enum=charmtone,enum=dark,enum=light,default=charmtone"`
 
-	Completions Completions `json:"completions,omitzero" jsonschema:"description=Completions UI options"`
+	Completions Completions   `json:"completions,omitzero" jsonschema:"description=Completions UI options"`
+	Voice       *VoiceOptions `json:"voice,omitempty" jsonschema:"description=Voice input options using OpenAI Whisper"`
+}
+
+// VoiceOptions configures voice input via OpenAI Whisper API.
+type VoiceOptions struct {
+	Enabled     bool   `json:"enabled,omitempty" jsonschema:"description=Enable voice input (requires sox or ffmpeg for recording),default=true"`
+	APIKey      string `json:"api_key,omitempty" jsonschema:"description=OpenAI API key for Whisper transcription (defaults to OPENAI_API_KEY env var),example=$OPENAI_API_KEY"`
+	ContextFile string `json:"context_file,omitempty" jsonschema:"description=Path to file containing custom vocabulary/terms for transcription accuracy"`
 }
 
 // Completions defines options for the completions UI.
