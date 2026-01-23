@@ -570,6 +570,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 			return util.ReportWarn("Agent is busy, please wait...")
 		}
 		return tea.Suspend
+	case key.Matches(msg, a.keyMap.ReloadTheme):
+		styles.DefaultManager().ReloadThemes()
+		return util.ReportInfo("Theme reloaded")
 	default:
 		item, ok := a.pages[a.currentPage]
 		if !ok {

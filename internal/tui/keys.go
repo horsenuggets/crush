@@ -5,14 +5,15 @@ import (
 )
 
 type KeyMap struct {
-	Quit       key.Binding
-	Help       key.Binding
-	Commands   key.Binding
-	Suspend    key.Binding
-	Models     key.Binding
-	Sessions   key.Binding
-	Instances  key.Binding
-	VoiceInput key.Binding
+	Quit        key.Binding
+	Help        key.Binding
+	Commands    key.Binding
+	Suspend     key.Binding
+	Models      key.Binding
+	Sessions    key.Binding
+	Instances   key.Binding
+	VoiceInput  key.Binding
+	ReloadTheme key.Binding
 
 	pageBindings []key.Binding
 }
@@ -50,6 +51,10 @@ func DefaultKeyMap() KeyMap {
 		VoiceInput: key.NewBinding(
 			key.WithKeys("ctrl+u"),
 			key.WithHelp("ctrl+u", "voice"),
+		),
+		ReloadTheme: key.NewBinding(
+			key.WithKeys("ctrl+t"),
+			key.WithHelp("ctrl+t", "reload theme"),
 		),
 	}
 }
