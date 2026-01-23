@@ -107,11 +107,8 @@ func iconAndDescription(l config.LSP, t *styles.Theme, states map[string]app.LSP
 	case lsp.StateReady:
 		return t.ItemOnlineIcon, ""
 	case lsp.StateError:
-		description := t.S().Subtle.Render("error")
-		if info.Error != nil {
-			description = t.S().Subtle.Render(fmt.Sprintf("error: %s", info.Error.Error()))
-		}
-		return t.ItemErrorIcon, description
+		// Show soft "unavailable" instead of prominent error for optional feature
+		return t.ItemOfflineIcon.Foreground(t.FgMuted), t.S().Subtle.Render("unavailable")
 	case lsp.StateDisabled:
 		return t.ItemOfflineIcon.Foreground(t.FgMuted), t.S().Subtle.Render("inactive")
 	default:
