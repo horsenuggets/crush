@@ -1,5 +1,45 @@
 {
   "$schema": "https://charm.land/crush.json",
+  "providers": {
+    "claude-cli": {
+      "id": "claude-cli",
+      "name": "Claude CLI (Max Subscription)",
+      "type": "claude-cli",
+      "models": [
+        {
+          "id": "opus",
+          "name": "Claude Opus",
+          "context_window": 200000,
+          "default_max_tokens": 8192,
+          "supports_images": true
+        },
+        {
+          "id": "sonnet",
+          "name": "Claude Sonnet",
+          "context_window": 200000,
+          "default_max_tokens": 8192,
+          "supports_images": true
+        },
+        {
+          "id": "haiku",
+          "name": "Claude Haiku",
+          "context_window": 200000,
+          "default_max_tokens": 8192,
+          "supports_images": true
+        }
+      ]
+    }
+  },
+  "models": {
+    "large": {
+      "model": "opus",
+      "provider": "claude-cli"
+    },
+    "small": {
+      "model": "haiku",
+      "provider": "claude-cli"
+    }
+  },
   "lsp": {
     "gopls": {
       "options": {
