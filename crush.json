@@ -8,21 +8,21 @@
       "models": [
         {
           "id": "opus",
-          "name": "Claude Opus",
+          "name": "Opus 4.5 (Max)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
         },
         {
           "id": "sonnet",
-          "name": "Claude Sonnet",
+          "name": "Sonnet 4 (Max)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
         },
         {
           "id": "haiku",
-          "name": "Claude Haiku",
+          "name": "Haiku 3.5 (Max)",
           "context_window": 200000,
           "default_max_tokens": 8192,
           "supports_images": true
