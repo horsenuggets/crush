@@ -26,7 +26,7 @@ var (
 	chromaFgMuted     = hsvColor(0, 0, 0.6)    // Medium gray
 	chromaFgHalfMuted = hsvColor(0, 0, 0.75)   // Light gray
 	chromaFgSubtle    = hsvColor(0, 0, 0.45)   // Dark gray
-	chromaFgSelected  = hsvColor(0, 0, 0.0)    // Black for contrast on light selection
+	chromaFgSelected  = colorful.Color{R: 0, G: 0, B: 0} // Pure black for contrast on light selection
 	chromaBgOverlay   = hsvColor(0, 0, 0.12)   // Dark gray overlay
 	chromaBorder      = hsvColor(0, 0, 0.25)   // Gray border
 	chromaSelection   = hsvColor(0, 0, 1.0)    // Bright white for selection
@@ -42,7 +42,7 @@ func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
 
 	return []color.Color{
 		chromaSelection,            // 0: Primary - neutral white selection (not animated)
-		hsvColor(h, 0.5, 0.95),     // 1: Secondary - animated, subtle saturation
+		hsvColor(h, 0.6, 0.75),     // 1: Secondary - animated, darker for black text contrast
 		chromaFgBase,               // 2: Tertiary - white (used for ">" prompt, cached)
 		hsvColor(h, 1.0, 1.0),      // 3: Accent - animated rainbow
 		hsvColor(h, 1.0, 1.0),      // 4: BorderFocus - animated rainbow
