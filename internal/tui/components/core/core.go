@@ -158,7 +158,7 @@ func SelectableButton(opts ButtonOpts) string {
 
 	// Apply selection styling
 	if opts.Selected {
-		buttonStyle = buttonStyle.Foreground(t.White).Background(t.Secondary)
+		buttonStyle = buttonStyle.Foreground(t.FgSelected).Background(t.Secondary)
 	} else {
 		buttonStyle = buttonStyle.Background(t.BgSubtle)
 	}
