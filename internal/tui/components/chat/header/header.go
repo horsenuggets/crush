@@ -86,9 +86,14 @@ func (h *header) View() string {
 		rightPadding
 
 	if remainingWidth > 0 {
-		b.WriteString(t.S().Base.Foreground(t.Primary).Render(
-			strings.Repeat(diag, max(minDiags, remainingWidth)),
-		))
+		diagLine := strings.Repeat(diag, max(minDiags, remainingWidth))
+		if t.IsAnimated() {
+			// Apply animated rainbow gradient for animated themes
+			diagLine = styles.ApplyAnimatedGrad(diagLine)
+		} else {
+			diagLine = t.S().Base.Foreground(t.Primary).Render(diagLine)
+		}
+		b.WriteString(diagLine)
 		b.WriteString(gap)
 	}
 
@@ -130,9 +135,14 @@ func (h *header) details(availWidth int) string {
 
 	// Truncate cwd if necessary, and insert it at the beginning.
 	const dirTrimLimit = 4
+	t := styles.CurrentTheme()
 	cwd := fsext.DirTrim(fsext.PrettyPath(config.Get().WorkingDir()), dirTrimLimit)
 	cwd = ansi.Truncate(cwd, max(0, availWidth-lipgloss.Width(metadata)), "…")
-	cwd = s.Muted.Render(cwd)
+	if t.IsAnimated() {
+		cwd = styles.ApplyAnimatedGrad(cwd)
+	} else {
+		cwd = s.Muted.Render(cwd)
+	}
 
 	return cwd + metadata
 }
