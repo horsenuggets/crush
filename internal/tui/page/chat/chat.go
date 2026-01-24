@@ -34,7 +34,10 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/filepicker"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/hyper"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/models"
+	ollamadialog "github.com/charmbracelet/crush/internal/tui/components/dialogs/ollama"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/reasoning"
+	"github.com/charmbracelet/crush/internal/tui/components/dialogs/theme"
+	"github.com/charmbracelet/crush/internal/ollama"
 	"github.com/charmbracelet/crush/internal/tui/page"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/tui/util"
@@ -274,6 +277,22 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		return p, cmd
 	case chat.SendMsg:
 		return p, p.sendMessage(msg.Text, msg.Attachments)
+	case ollamadialog.InstallCompleteMsg:
+		if msg.Success {
+			return p, util.CmdHandler(util.InfoMsg{
+				Type: util.InfoTypeInfo,
+				Msg:  "Ollama installed successfully. You can now use local models.",
+			})
+		}
+		return p, nil
+	case ollamadialog.PullCompleteMsg:
+		if msg.Success {
+			return p, util.CmdHandler(util.InfoMsg{
+				Type: util.InfoTypeInfo,
+				Msg:  fmt.Sprintf("Model %s downloaded successfully. Resend your message to continue.", msg.Model),
+			})
+		}
+		return p, nil
 	case chat.SessionSelectedMsg:
 		return p, p.setSession(msg)
 	case splash.SubmitAPIKeyMsg:
@@ -298,6 +317,10 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		return p, p.openReasoningDialog()
 	case reasoning.ReasoningEffortSelectedMsg:
 		return p, p.handleReasoningEffortSelected(msg.Effort)
+	case commands.OpenThemeDialogMsg:
+		return p, p.openThemeDialog()
+	case theme.ThemeSelectedMsg:
+		return p, p.handleThemeSelected(msg.Theme)
 	case commands.OpenExternalEditorMsg:
 		u, cmd := p.editor.Update(msg)
 		p.editor = u.(editor.Editor)
@@ -770,6 +793,44 @@ func (p *chatPage) handleReasoningEffortSelected(effort string) tea.Cmd {
 	}
 }
 
+func (p *chatPage) openThemeDialog() tea.Cmd {
+	return func() tea.Msg {
+		return dialogs.OpenDialogMsg{
+			Model: theme.NewThemeDialog(),
+		}
+	}
+}
+
+func (p *chatPage) handleThemeSelected(themeName string) tea.Cmd {
+	return func() tea.Msg {
+		// Apply theme to the manager
+		mgr := styles.DefaultManager()
+		if err := mgr.SetTheme(themeName); err != nil {
+			return util.InfoMsg{
+				Type: util.InfoTypeError,
+				Msg:  "Failed to set theme: " + err.Error(),
+			}
+		}
+
+		// Reload theme styles to pick up any changed settings
+		mgr.ReloadThemes()
+
+		// Save to config
+		cfg := config.Get()
+		if err := cfg.SetTheme(themeName); err != nil {
+			return util.InfoMsg{
+				Type: util.InfoTypeError,
+				Msg:  "Failed to save theme: " + err.Error(),
+			}
+		}
+
+		return util.InfoMsg{
+			Type: util.InfoTypeInfo,
+			Msg:  "Theme set to " + themeName,
+		}
+	}
+}
+
 func (p *chatPage) setCompactMode(compact bool) {
 	if p.compact == compact {
 		return
@@ -1002,6 +1063,17 @@ func (p *chatPage) sendMessage(text string, attachments []message.Attachment) te
 			isPermissionErr := errors.Is(err, permission.ErrorPermissionDenied)
 			if isCancelErr || isPermissionErr {
 				return nil
+			}
+			// Check for Ollama not installed error
+			if errors.Is(err, ollama.ErrNotInstalled) {
+				return dialogs.OpenDialogMsg{Model: ollamadialog.NewInstallDialog()}
+			}
+			// Check for model not found error - offer to pull automatically
+			var ollamaErr *ollama.OllamaError
+			if errors.As(err, &ollamaErr) {
+				if errors.Is(ollamaErr.Err, ollama.ErrModelNotFound) && ollamaErr.Model != "" {
+					return dialogs.OpenDialogMsg{Model: ollamadialog.NewPullDialog(ollamaErr.Model)}
+				}
 			}
 			return util.InfoMsg{
 				Type: util.InfoTypeError,

@@ -79,6 +79,7 @@ type (
 	ToggleCompactModeMsg   struct{}
 	ToggleThinkingMsg      struct{}
 	OpenReasoningDialogMsg struct{}
+	OpenThemeDialogMsg     struct{}
 	OpenExternalEditorMsg  struct{}
 	ToggleYoloModeMsg      struct{}
 	CompactMsg             struct {
@@ -439,6 +440,14 @@ func (c *commandDialogCmp) defaultCommands() []Command {
 			Description: "Toggle yolo mode",
 			Handler: func(cmd Command) tea.Cmd {
 				return util.CmdHandler(ToggleYoloModeMsg{})
+			},
+		},
+		{
+			ID:          "select_theme",
+			Title:       "Select Theme",
+			Description: "Change the color theme",
+			Handler: func(cmd Command) tea.Cmd {
+				return util.CmdHandler(OpenThemeDialogMsg{})
 			},
 		},
 		{
