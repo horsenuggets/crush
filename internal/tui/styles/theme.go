@@ -32,9 +32,10 @@ type Theme struct {
 	IsDark bool
 
 	// Animation support for themes like chroma
-	Animated       bool                                      // Whether this theme has animated colors
-	AnimationSpeed float64                                   // Hue degrees per second (e.g., 30 = full cycle in 12 seconds)
-	ColorFunc      func(baseHue, hueOffset float64) []color.Color // Function to generate colors based on hue offset
+	Animated       bool                                            // Whether this theme has animated colors
+	AnimationSpeed float64                                         // Hue degrees per second (e.g., 30 = full cycle in 12 seconds)
+	ColorFunc      func(baseHue, hueOffset float64) []color.Color  // Function to generate colors based on hue offset
+	StyleBuilder   func(t *Theme, hueOffset float64)               // Function to rebuild lipgloss styles during animation
 
 	Primary   color.Color
 	Secondary color.Color
@@ -219,6 +220,11 @@ func (t *Theme) AdvanceAnimation() bool {
 		t.BgBase = colors[9]
 		t.BgBaseLighter = colors[10]
 		t.BgSubtle = colors[11]
+	}
+
+	// Rebuild lipgloss styles if the theme has a style builder
+	if t.StyleBuilder != nil {
+		t.StyleBuilder(t, t.animHueOffset)
 	}
 
 	// Clear cached styles so they get rebuilt with new colors
