@@ -59,15 +59,5 @@
         }
       ]
     }
-  },
-  "models": {
-    "large": {
-      "model": "opus",
-      "provider": "claude-cli"
-    },
-    "small": {
-      "model": "haiku",
-      "provider": "claude-cli"
-    }
   }
 }
