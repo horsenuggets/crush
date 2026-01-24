@@ -15,10 +15,42 @@ import (
 // This theme supports animation - accent colors cycle through the rainbow in sync.
 // Base/text colors are neutral grayscale for readability and performance.
 
-// hsvColor creates a color from HSV values.
+// perceivedBrightnessBoost returns a brightness boost for perceptually darker hues.
+// Blue (240°) and purple (270-300°) appear darker than yellow/green/cyan at the
+// same HSV value, so we boost their brightness to compensate.
+func perceivedBrightnessBoost(h float64) float64 {
+	h = math.Mod(h+360, 360)
+
+	// Center the boost around 260° (blue-purple transition)
+	// This is where colors appear darkest perceptually
+	center := 260.0
+	// Half-width of the boost region in degrees
+	width := 70.0
+
+	// Calculate distance from center (handling wrap-around)
+	dist := math.Abs(h - center)
+	if dist > 180 {
+		dist = 360 - dist
+	}
+
+	// Outside boost region - no adjustment needed
+	if dist > width {
+		return 0
+	}
+
+	// Smooth cosine curve for gradual transition
+	// Peak boost of ~0.15 at center, tapering to 0 at edges
+	return 0.15 * (1 + math.Cos(math.Pi*dist/width)) / 2
+}
+
+// hsvColor creates a color from HSV values with perceptual brightness compensation.
 // h: hue (0-360), s: saturation (0-1), v: value (0-1)
 func hsvColor(h, s, v float64) colorful.Color {
-	return colorful.Hsv(math.Mod(h+360, 360), s, v)
+	h = math.Mod(h+360, 360)
+	// Boost brightness for perceptually darker hues (blue/purple range)
+	boost := perceivedBrightnessBoost(h)
+	v = math.Min(1.0, v+boost)
+	return colorful.Hsv(h, s, v)
 }
 
 // Static neutral colors (grayscale) - these don't animate for performance

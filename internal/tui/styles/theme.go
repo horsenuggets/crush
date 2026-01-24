@@ -871,6 +871,34 @@ func ApplyForegroundGrad(input string, color1, color2 color.Color) string {
 	return o.String()
 }
 
+// perceivedBrightnessBoost returns a brightness boost for perceptually darker hues.
+// Blue (240°) and purple (270-300°) appear darker than yellow/green/cyan at the
+// same HSV value, so we boost their brightness to compensate.
+func perceivedBrightnessBoost(h float64) float64 {
+	h = math.Mod(h+360, 360)
+
+	// Center the boost around 260° (blue-purple transition)
+	// This is where colors appear darkest perceptually
+	center := 260.0
+	// Half-width of the boost region in degrees
+	width := 70.0
+
+	// Calculate distance from center (handling wrap-around)
+	dist := math.Abs(h - center)
+	if dist > 180 {
+		dist = 360 - dist
+	}
+
+	// Outside boost region - no adjustment needed
+	if dist > width {
+		return 0
+	}
+
+	// Smooth cosine curve for gradual transition
+	// Peak boost of ~0.15 at center, tapering to 0 at edges
+	return 0.15 * (1 + math.Cos(math.Pi*dist/width)) / 2
+}
+
 // ApplyAnimatedGrad renders a string with a sweeping rainbow gradient that
 // moves based on the theme's current animation offset. Creates a wave effect.
 func ApplyAnimatedGrad(input string) string {
@@ -904,8 +932,13 @@ func ApplyAnimatedGrad(input string) string {
 		charHue := hueOffset + float64(i)*60.0/float64(len(clusters))
 		charHue = math.Mod(charHue, 360)
 
-		// Create color using HSV (saturation 0.8, value 1.0 for bright pastels)
-		c := colorful.Hsv(charHue, 0.7, 1.0)
+		// Create color using HSV with perceptual brightness compensation
+		// Blue/purple hues get a brightness boost to appear equally vibrant
+		baseValue := 1.0
+		boost := perceivedBrightnessBoost(charHue)
+		value := math.Min(1.0, baseValue+boost)
+
+		c := colorful.Hsv(charHue, 0.7, value)
 		style := t.S().Base.Foreground(c)
 		o.WriteString(style.Render(cluster))
 	}

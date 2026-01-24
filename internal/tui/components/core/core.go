@@ -73,17 +73,15 @@ func Title(title string, width int) string {
 	length := lipgloss.Width(title) + 1
 	remainingWidth := width - length
 
-	// For animated themes, apply sweeping animated gradient
+	// For animated themes, apply sweeping animated gradient to combined title + lines
 	if t.IsAnimated() {
-		titleGrad := styles.ApplyAnimatedGrad(title)
 		if remainingWidth > 0 {
 			lines := strings.Repeat(char, remainingWidth)
-			lines = styles.ApplyAnimatedGrad(lines)
-			title = titleGrad + " " + lines
-		} else {
-			title = titleGrad
+			// Combine title and lines into single string for one continuous gradient
+			combined := title + " " + lines
+			return styles.ApplyAnimatedGrad(combined)
 		}
-		return title
+		return styles.ApplyAnimatedGrad(title)
 	}
 
 	// Non-animated themes use solid primary color for title
