@@ -871,16 +871,17 @@ func ApplyForegroundGrad(input string, color1, color2 color.Color) string {
 	return o.String()
 }
 
-// perceivedBrightnessBoost returns a brightness boost for perceptually darker hues.
-// Blue (240°) and purple (270-300°) appear darker than yellow/green/cyan at the
-// same HSV value, so we boost their brightness to compensate.
-func perceivedBrightnessBoost(h float64) float64 {
+// perceivedBrightnessAdjust returns saturation reduction and value boost for
+// perceptually darker hues. Blue (240°) and purple (270-300°) appear darker
+// than yellow/green/cyan at the same HSV values, so we compensate by reducing
+// saturation (makes colors lighter/more pastel) and boosting value.
+func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
 	h = math.Mod(h+360, 360)
 
-	// Center the boost around 260° (blue-purple transition)
+	// Center the adjustment around 260° (blue-purple transition)
 	// This is where colors appear darkest perceptually
 	center := 260.0
-	// Half-width of the boost region in degrees
+	// Half-width of the adjustment region in degrees
 	width := 70.0
 
 	// Calculate distance from center (handling wrap-around)
@@ -889,14 +890,20 @@ func perceivedBrightnessBoost(h float64) float64 {
 		dist = 360 - dist
 	}
 
-	// Outside boost region - no adjustment needed
+	// Outside adjustment region - no changes needed
 	if dist > width {
-		return 0
+		return 0, 0
 	}
 
 	// Smooth cosine curve for gradual transition
-	// Peak boost of ~0.15 at center, tapering to 0 at edges
-	return 0.15 * (1 + math.Cos(math.Pi*dist/width)) / 2
+	factor := (1 + math.Cos(math.Pi*dist/width)) / 2
+
+	// Reduce saturation more than boosting value for a lighter appearance
+	// Saturation reduction makes colors more pastel/white = perceptually brighter
+	saturationReduce = 0.15 * factor // reduce saturation by up to 15%
+	valueBoost = 0.05 * factor       // small value boost where possible
+
+	return saturationReduce, valueBoost
 }
 
 // ApplyAnimatedGrad renders a string with a sweeping rainbow gradient that
@@ -932,13 +939,13 @@ func ApplyAnimatedGrad(input string) string {
 		charHue := hueOffset + float64(i)*60.0/float64(len(clusters))
 		charHue = math.Mod(charHue, 360)
 
-		// Create color using HSV with perceptual brightness compensation
-		// Blue/purple hues get a brightness boost to appear equally vibrant
-		baseValue := 1.0
-		boost := perceivedBrightnessBoost(charHue)
-		value := math.Min(1.0, baseValue+boost)
+		// Apply perceptual brightness compensation for blue/purple hues
+		// Reducing saturation makes colors lighter (more pastel = brighter)
+		satReduce, valBoost := perceivedBrightnessAdjust(charHue)
+		saturation := math.Max(0.3, 0.7-satReduce) // base 0.7, reduce for dark hues
+		value := math.Min(1.0, 1.0+valBoost)
 
-		c := colorful.Hsv(charHue, 0.7, value)
+		c := colorful.Hsv(charHue, saturation, value)
 		style := t.S().Base.Foreground(c)
 		o.WriteString(style.Render(cluster))
 	}
@@ -1017,8 +1024,9 @@ type ThemeChangedMsg struct {
 // AnimationTickMsg is sent when theme animation should advance.
 type AnimationTickMsg struct{}
 
-// AnimationTickInterval is the interval between animation ticks (20hz = 50ms).
-const AnimationTickInterval = 50 * time.Millisecond
+// AnimationTickInterval is the interval between animation ticks (10hz = 100ms).
+// Kept at 10hz to reduce chance of race conditions causing visual flicker.
+const AnimationTickInterval = 100 * time.Millisecond
 
 // AnimationTickCmd returns a command that sends AnimationTickMsg after the tick interval.
 func AnimationTickCmd() tea.Cmd {

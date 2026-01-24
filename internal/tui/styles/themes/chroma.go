@@ -15,16 +15,17 @@ import (
 // This theme supports animation - accent colors cycle through the rainbow in sync.
 // Base/text colors are neutral grayscale for readability and performance.
 
-// perceivedBrightnessBoost returns a brightness boost for perceptually darker hues.
-// Blue (240°) and purple (270-300°) appear darker than yellow/green/cyan at the
-// same HSV value, so we boost their brightness to compensate.
-func perceivedBrightnessBoost(h float64) float64 {
+// perceivedBrightnessAdjust returns saturation reduction and value boost for
+// perceptually darker hues. Blue (240°) and purple (270-300°) appear darker
+// than yellow/green/cyan at the same HSV values, so we compensate by reducing
+// saturation (makes colors lighter/more pastel) and boosting value.
+func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
 	h = math.Mod(h+360, 360)
 
-	// Center the boost around 260° (blue-purple transition)
+	// Center the adjustment around 260° (blue-purple transition)
 	// This is where colors appear darkest perceptually
 	center := 260.0
-	// Half-width of the boost region in degrees
+	// Half-width of the adjustment region in degrees
 	width := 70.0
 
 	// Calculate distance from center (handling wrap-around)
@@ -33,23 +34,31 @@ func perceivedBrightnessBoost(h float64) float64 {
 		dist = 360 - dist
 	}
 
-	// Outside boost region - no adjustment needed
+	// Outside adjustment region - no changes needed
 	if dist > width {
-		return 0
+		return 0, 0
 	}
 
 	// Smooth cosine curve for gradual transition
-	// Peak boost of ~0.15 at center, tapering to 0 at edges
-	return 0.15 * (1 + math.Cos(math.Pi*dist/width)) / 2
+	factor := (1 + math.Cos(math.Pi*dist/width)) / 2
+
+	// Reduce saturation more than boosting value for a lighter appearance
+	// Saturation reduction makes colors more pastel/white = perceptually brighter
+	saturationReduce = 0.15 * factor // reduce saturation by up to 15%
+	valueBoost = 0.05 * factor       // small value boost where possible
+
+	return saturationReduce, valueBoost
 }
 
 // hsvColor creates a color from HSV values with perceptual brightness compensation.
 // h: hue (0-360), s: saturation (0-1), v: value (0-1)
 func hsvColor(h, s, v float64) colorful.Color {
 	h = math.Mod(h+360, 360)
-	// Boost brightness for perceptually darker hues (blue/purple range)
-	boost := perceivedBrightnessBoost(h)
-	v = math.Min(1.0, v+boost)
+	// Adjust for perceptually darker hues (blue/purple range)
+	// Reducing saturation makes them lighter/more pastel
+	satReduce, valBoost := perceivedBrightnessAdjust(h)
+	s = math.Max(0.0, s-satReduce)
+	v = math.Min(1.0, v+valBoost)
 	return colorful.Hsv(h, s, v)
 }
 
