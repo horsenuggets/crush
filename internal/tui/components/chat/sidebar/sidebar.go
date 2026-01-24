@@ -101,6 +101,12 @@ func (m *sidebarCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case styles.ThemeChangedMsg:
+		// Refresh cached values when theme changes
+		m.logo = m.logoBlock()
+		m.cwd = cwd()
+		return m, nil
+
 	case chat.SessionClearedMsg:
 		m.session = session.Session{}
 	case pubsub.Event[history.File]:
@@ -136,8 +142,13 @@ func (m *sidebarCmp) View() string {
 	}
 
 	if !m.compactMode {
+		// Compute cwd fresh for animated themes so colors update each frame
+		cwdStr := m.cwd
+		if t.IsAnimated() {
+			cwdStr = cwd()
+		}
 		parts = append(parts,
-			m.cwd,
+			cwdStr,
 			"",
 		)
 	}
@@ -571,8 +582,14 @@ func (s *sidebarCmp) currentModelBlock() string {
 
 	t := styles.CurrentTheme()
 
-	modelIcon := t.S().Base.Foreground(t.FgSubtle).Render(styles.ModelIcon)
-	modelName := t.S().Text.Render(model.Name)
+	var modelIcon, modelName string
+	if t.IsAnimated() {
+		modelIcon = styles.ApplyAnimatedGrad(styles.ModelIcon)
+		modelName = styles.ApplyAnimatedGrad(model.Name)
+	} else {
+		modelIcon = t.S().Base.Foreground(t.FgSubtle).Render(styles.ModelIcon)
+		modelName = t.S().Text.Render(model.Name)
+	}
 	modelInfo := fmt.Sprintf("%s %s", modelIcon, modelName)
 	parts := []string{
 		modelInfo,
@@ -624,7 +641,11 @@ func (m *sidebarCmp) SetCompactMode(compact bool) {
 }
 
 func cwd() string {
-	cwd := config.Get().WorkingDir()
+	cwdPath := config.Get().WorkingDir()
 	t := styles.CurrentTheme()
-	return t.S().Muted.Render(home.Short(cwd))
+	shortPath := home.Short(cwdPath)
+	if t.IsAnimated() {
+		return styles.ApplyAnimatedGrad(shortPath)
+	}
+	return t.S().Muted.Render(shortPath)
 }

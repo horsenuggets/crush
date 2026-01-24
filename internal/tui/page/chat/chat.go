@@ -321,6 +321,18 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		return p, p.openThemeDialog()
 	case theme.ThemeSelectedMsg:
 		return p, p.handleThemeSelected(msg.Theme)
+	case styles.ThemeChangedMsg:
+		// Pass theme change to all child components so they can refresh cached content
+		u, cmd := p.sidebar.Update(msg)
+		p.sidebar = u.(sidebar.Sidebar)
+		cmds = append(cmds, cmd)
+		u, cmd = p.splash.Update(msg)
+		p.splash = u.(splash.Splash)
+		cmds = append(cmds, cmd)
+		u, cmd = p.chat.Update(msg)
+		p.chat = u.(chat.MessageListCmp)
+		cmds = append(cmds, cmd)
+		return p, tea.Batch(cmds...)
 	case commands.OpenExternalEditorMsg:
 		u, cmd := p.editor.Update(msg)
 		p.editor = u.(editor.Editor)

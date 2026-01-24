@@ -162,6 +162,14 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if animCmd := styles.DefaultManager().StartAnimationIfNeeded(); animCmd != nil {
 			cmds = append(cmds, animCmd)
 		}
+		// Pass to all pages so they can refresh cached content
+		for id, page := range a.pages {
+			m, pageCmd := page.Update(msg)
+			a.pages[id] = m
+			if pageCmd != nil {
+				cmds = append(cmds, pageCmd)
+			}
+		}
 		return a, tea.Batch(cmds...)
 	case tea.KeyboardEnhancementsMsg:
 		// A non-zero value means we have key disambiguation support.

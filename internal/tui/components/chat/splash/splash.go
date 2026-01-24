@@ -158,6 +158,10 @@ func (s *splashCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		return s, s.SetSize(msg.Width, msg.Height)
+	case styles.ThemeChangedMsg:
+		// Refresh cached rendered content when theme changes
+		s.logoRendered = s.logoBlock()
+		return s, nil
 	case hyper.DeviceFlowCompletedMsg:
 		s.showHyperDeviceFlow = false
 		return s, s.saveAPIKeyAndContinue(msg.Token, true)
