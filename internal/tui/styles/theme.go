@@ -53,6 +53,7 @@ type Theme struct {
 	FgHalfMuted color.Color
 	FgSubtle    color.Color
 	FgSelected  color.Color
+	FgCursor    color.Color // Optional cursor color, defaults to Secondary if nil
 
 	Border      color.Color
 	BorderFocus color.Color
@@ -329,6 +330,15 @@ func (t *Theme) GetHueOffset() float64 {
 	return t.animHueOffset
 }
 
+// cursorColor returns the color to use for the text cursor.
+// Uses FgCursor if set, otherwise falls back to Secondary.
+func (t *Theme) cursorColor() color.Color {
+	if t.FgCursor != nil {
+		return t.FgCursor
+	}
+	return t.Secondary
+}
+
 func (t *Theme) buildStyles() *Styles {
 	base := lipgloss.NewStyle().
 		Foreground(t.FgBase)
@@ -374,7 +384,7 @@ func (t *Theme) buildStyles() *Styles {
 				Suggestion:  base.Foreground(t.FgSubtle),
 			},
 			Cursor: textinput.CursorStyle{
-				Color: t.Secondary,
+				Color: t.cursorColor(),
 				Shape: DefaultManager().CursorStyle(),
 				Blink: true,
 			},
@@ -399,7 +409,7 @@ func (t *Theme) buildStyles() *Styles {
 				Prompt:           base.Foreground(t.FgMuted),
 			},
 			Cursor: textarea.CursorStyle{
-				Color: t.Secondary,
+				Color: t.cursorColor(),
 				Shape: DefaultManager().CursorStyle(),
 				Blink: true,
 			},
@@ -952,9 +962,9 @@ func ApplyForegroundGrad(input string, color1, color2 color.Color) string {
 func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
 	h = math.Mod(h+360, 360)
 
-	// Center the adjustment around 260° (blue-purple transition)
+	// Center the adjustment around 250° (deep blue)
 	// This is where colors appear darkest perceptually
-	center := 260.0
+	center := 250.0
 	// Half-width of the adjustment region in degrees
 	width := 70.0
 
@@ -972,10 +982,10 @@ func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64)
 	// Smooth cosine curve for gradual transition
 	factor := (1 + math.Cos(math.Pi*dist/width)) / 2
 
-	// Reduce saturation more than boosting value for a lighter appearance
-	// Saturation reduction makes colors more pastel/white = perceptually brighter
-	saturationReduce = 0.15 * factor // reduce saturation by up to 15%
-	valueBoost = 0.05 * factor       // small value boost where possible
+	// Lean more heavily on saturation reduction for lighter appearance
+	// Also add stronger value boost for the deep blue range
+	saturationReduce = 0.20 * factor // reduce saturation by up to 20%
+	valueBoost = 0.10 * factor       // boost value by up to 10%
 
 	return saturationReduce, valueBoost
 }

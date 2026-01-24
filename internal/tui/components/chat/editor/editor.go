@@ -748,6 +748,23 @@ func normalPromptFunc(info textarea.PromptInfo) string {
 
 func yoloPromptFunc(info textarea.PromptInfo) string {
 	t := styles.CurrentTheme()
+
+	// For animated themes, render fresh using atomic snapshot colors to avoid flicker
+	if t.IsAnimated() {
+		if snapshot := t.GetAnimatedColors(); snapshot != nil {
+			if info.LineNumber == 0 {
+				if info.Focused {
+					return lipgloss.NewStyle().Foreground(snapshot.BgBase).Background(snapshot.Accent).Bold(true).Render(" ! ") + " "
+				}
+				return lipgloss.NewStyle().Foreground(t.FgMuted).Background(t.BgOverlay).Bold(true).Render(" ! ") + " "
+			}
+			if info.Focused {
+				return lipgloss.NewStyle().Foreground(snapshot.Accent).Render(":::") + " "
+			}
+			return lipgloss.NewStyle().Foreground(t.FgSubtle).Render(":::") + " "
+		}
+	}
+
 	if info.LineNumber == 0 {
 		if info.Focused {
 			return fmt.Sprintf("%s ", t.YoloIconFocused)

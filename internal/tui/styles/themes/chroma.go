@@ -22,9 +22,9 @@ import (
 func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
 	h = math.Mod(h+360, 360)
 
-	// Center the adjustment around 260° (blue-purple transition)
+	// Center the adjustment around 250° (deep blue)
 	// This is where colors appear darkest perceptually
-	center := 260.0
+	center := 250.0
 	// Half-width of the adjustment region in degrees
 	width := 70.0
 
@@ -42,10 +42,10 @@ func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64)
 	// Smooth cosine curve for gradual transition
 	factor := (1 + math.Cos(math.Pi*dist/width)) / 2
 
-	// Reduce saturation more than boosting value for a lighter appearance
-	// Saturation reduction makes colors more pastel/white = perceptually brighter
-	saturationReduce = 0.15 * factor // reduce saturation by up to 15%
-	valueBoost = 0.05 * factor       // small value boost where possible
+	// Lean more heavily on saturation reduction for lighter appearance
+	// Also add stronger value boost for the deep blue range
+	saturationReduce = 0.20 * factor // reduce saturation by up to 20%
+	valueBoost = 0.10 * factor       // boost value by up to 10%
 
 	return saturationReduce, valueBoost
 }
@@ -181,6 +181,7 @@ func NewChromaTheme() *styles.Theme {
 		FgHalfMuted: chromaFgHalfMuted, // Light gray
 		FgSubtle:    chromaFgSubtle,    // Dark gray
 		FgSelected:  chromaFgSelected,
+		FgCursor:    chromaFgBase,      // Neutral white cursor (not animated)
 
 		// Borders
 		Border:      chromaBorder,
