@@ -118,3 +118,6 @@ func (q *quitDialogCmp) Position() (int, int) {
 func (q *quitDialogCmp) ID() dialogs.DialogID {
 	return QuitDialogID
 }
+
+// AutoCentered implements dialogs.AutoCenteredDialog for automatic centering.
+func (q *quitDialogCmp) AutoCentered() {}

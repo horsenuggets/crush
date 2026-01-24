@@ -31,9 +31,11 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/filepicker"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/instances"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/models"
+	ollamadialog "github.com/charmbracelet/crush/internal/tui/components/dialogs/ollama"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/permissions"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/quit"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/sessions"
+	"github.com/charmbracelet/crush/internal/ollama"
 	"github.com/charmbracelet/crush/internal/tui/page"
 	"github.com/charmbracelet/crush/internal/tui/page/chat"
 	"github.com/charmbracelet/crush/internal/tui/styles"
@@ -81,6 +83,9 @@ type appModel struct {
 
 	// Chat Page Specific
 	selectedSessionID string // The ID of the currently selected session
+
+	// Pending model selection while waiting for Ollama download
+	pendingModelSelection *models.ModelSelectedMsg
 
 	// sendProgressBar instructs the TUI to send progress bar updates to the
 	// terminal.
@@ -281,18 +286,28 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, util.ReportWarn("Agent is busy, please wait...")
 		}
 
-		cfg := config.Get()
-		if err := cfg.UpdatePreferredModel(msg.ModelType, msg.Model); err != nil {
-			return a, util.ReportError(err)
+		// Check if this is an Ollama model that needs to be downloaded
+		if msg.Model.Provider == "ollama" {
+			if !ollama.IsModelAvailable(msg.Model.Model) {
+				// Store pending model selection and show download dialog
+				a.pendingModelSelection = &msg
+				return a, util.CmdHandler(dialogs.OpenDialogMsg{
+					Model: ollamadialog.NewPullDialog(msg.Model.Model),
+				})
+			}
 		}
 
-		go a.app.UpdateAgentModel(context.TODO())
+		return a, a.applyModelSelection(msg)
 
-		modelTypeName := "large"
-		if msg.ModelType == config.SelectedModelTypeSmall {
-			modelTypeName = "small"
+	// Handle pull dialog completion - apply the pending model selection
+	case ollamadialog.PullCompleteMsg:
+		if msg.Success && a.pendingModelSelection != nil {
+			pendingMsg := *a.pendingModelSelection
+			a.pendingModelSelection = nil
+			return a, a.applyModelSelection(pendingMsg)
 		}
-		return a, util.ReportInfo(fmt.Sprintf("%s model changed to %s", modelTypeName, msg.Model.Model))
+		a.pendingModelSelection = nil
+		return a, nil
 
 	// File Picker
 	case commands.OpenFilePickerMsg:
@@ -423,6 +438,22 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmds = append(cmds, cmd)
 	return a, tea.Batch(cmds...)
+}
+
+// applyModelSelection updates the config with the selected model.
+func (a *appModel) applyModelSelection(msg models.ModelSelectedMsg) tea.Cmd {
+	cfg := config.Get()
+	if err := cfg.UpdatePreferredModel(msg.ModelType, msg.Model); err != nil {
+		return util.ReportError(err)
+	}
+
+	go a.app.UpdateAgentModel(context.TODO())
+
+	modelTypeName := "large"
+	if msg.ModelType == config.SelectedModelTypeSmall {
+		modelTypeName = "small"
+	}
+	return util.ReportInfo(fmt.Sprintf("%s model changed to %s", modelTypeName, msg.Model.Model))
 }
 
 // handleWindowResize processes window resize events and updates all components.
