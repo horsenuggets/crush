@@ -53,3 +53,6 @@ completions/crush.*sh
 
 .local/
 .ralph/
+.claude-context.md
+crush-test
+screenshots/
