@@ -81,6 +81,12 @@ func (d *instancesDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (d *instancesDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		d.help.Styles = t.HelpStyles
+	} else {
+		d.help.Styles = t.S().Help
+	}
 
 	var content string
 	if len(d.instances) == 0 {

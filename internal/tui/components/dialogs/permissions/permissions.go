@@ -765,7 +765,13 @@ func (p *permissionDialogCmp) render() string {
 
 	var contentHelp string
 	if p.supportsDiffView() {
-		contentHelp = help.New().View(p.keyMap)
+		h := help.New()
+		if t.IsAnimated() {
+			h.Styles = t.HelpStyles
+		} else {
+			h.Styles = t.S().Help
+		}
+		contentHelp = h.View(p.keyMap)
 	}
 
 	// Calculate content height dynamically based on window size

@@ -160,6 +160,12 @@ func (m *model) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (m *model) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		m.help.Styles = t.HelpStyles
+	} else {
+		m.help.Styles = t.S().Help
+	}
 
 	strs := []string{
 		t.S().Base.Padding(0, 1, 1, 1).Render(core.Title("Add Image", m.width-4)),

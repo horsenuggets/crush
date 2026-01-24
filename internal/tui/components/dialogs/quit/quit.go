@@ -68,7 +68,16 @@ func (q *quitDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 func (q *quitDialogCmp) View() string {
 	t := styles.CurrentTheme()
 	baseStyle := t.S().Base
-	yesStyle := t.S().Text
+
+	// Use animated dialog styles for animated themes
+	var yesStyle, questionStyle lipgloss.Style
+	if t.IsAnimated() {
+		yesStyle = t.DialogText
+		questionStyle = t.DialogText
+	} else {
+		yesStyle = t.S().Text
+		questionStyle = t.S().Text
+	}
 	noStyle := yesStyle
 
 	if q.selectedNo {
@@ -92,7 +101,7 @@ func (q *quitDialogCmp) View() string {
 	content := baseStyle.Render(
 		lipgloss.JoinVertical(
 			lipgloss.Center,
-			question,
+			questionStyle.Render(question),
 			"",
 			buttons,
 		),

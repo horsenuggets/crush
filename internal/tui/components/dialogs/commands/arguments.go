@@ -156,6 +156,12 @@ func (c *commandArgumentsDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 // View implements CommandArgumentsDialog.
 func (c *commandArgumentsDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		c.help.Styles = t.HelpStyles
+	} else {
+		c.help.Styles = t.S().Help
+	}
 	baseStyle := t.S().Base
 
 	title := lipgloss.NewStyle().

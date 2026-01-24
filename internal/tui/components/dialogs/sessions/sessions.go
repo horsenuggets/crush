@@ -121,6 +121,12 @@ func (s *sessionDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (s *sessionDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		s.help.Styles = t.HelpStyles
+	} else {
+		s.help.Styles = t.S().Help
+	}
 	listView := s.sessionsList.View()
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,

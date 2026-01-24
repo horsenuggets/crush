@@ -203,6 +203,12 @@ func (r *reasoningDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (r *reasoningDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		r.help.Styles = t.HelpStyles
+	} else {
+		r.help.Styles = t.S().Help
+	}
 	listView := r.effortList
 
 	header := t.S().Base.Padding(0, 1, 1, 1).Render(core.Title("Select Reasoning Effort", r.width-4))

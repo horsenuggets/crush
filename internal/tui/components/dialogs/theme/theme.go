@@ -191,6 +191,12 @@ func (d *themeDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (d *themeDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		d.help.Styles = t.HelpStyles
+	} else {
+		d.help.Styles = t.S().Help
+	}
 	listView := d.themeList
 
 	header := t.S().Base.Padding(0, 1, 1, 1).Render(core.Title("Select Theme", d.width-4))

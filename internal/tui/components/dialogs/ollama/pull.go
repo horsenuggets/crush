@@ -245,9 +245,16 @@ func (d *pullDialogCmp) View() string {
 }
 
 func (d *pullDialogCmp) renderPrompt(t *styles.Theme, baseStyle lipgloss.Style) string {
-	title := t.S().Title.Render("Model Not Found")
-	question := "Would you like to download " + d.model + "?"
-	hint := t.S().Text.Faint(true).Render("This may take a few minutes depending on model size")
+	var title, question, hint string
+	if t.IsAnimated() {
+		title = t.DialogTitle.Render("Model Not Found")
+		question = t.DialogText.Render("Would you like to download " + d.model + "?")
+		hint = t.DialogHint.Render("This may take a few minutes depending on model size")
+	} else {
+		title = t.S().Title.Render("Model Not Found")
+		question = "Would you like to download " + d.model + "?"
+		hint = t.S().Text.Faint(true).Render("This may take a few minutes depending on model size")
+	}
 
 	yesStyle := t.S().Text
 	noStyle := yesStyle
@@ -282,7 +289,12 @@ func (d *pullDialogCmp) renderPrompt(t *styles.Theme, baseStyle lipgloss.Style) 
 }
 
 func (d *pullDialogCmp) renderPulling(t *styles.Theme, baseStyle lipgloss.Style) string {
-	title := t.S().Title.Render("Downloading " + d.model)
+	var title string
+	if t.IsAnimated() {
+		title = t.DialogTitle.Render("Downloading " + d.model)
+	} else {
+		title = t.S().Title.Render("Downloading " + d.model)
+	}
 
 	// Progress bar
 	const barWidth = 40
@@ -297,14 +309,24 @@ func (d *pullDialogCmp) renderPulling(t *styles.Theme, baseStyle lipgloss.Style)
 	progressBar := barFilled + barEmpty
 
 	// Percentage (padded to 3 digits for consistent width)
-	percent := t.S().Text.Render(fmt.Sprintf(" %3.0f%%", d.progress))
+	var percent string
+	if t.IsAnimated() {
+		percent = t.DialogText.Render(fmt.Sprintf(" %3.0f%%", d.progress))
+	} else {
+		percent = t.S().Text.Render(fmt.Sprintf(" %3.0f%%", d.progress))
+	}
 
 	// Status
 	status := d.status
 	if status == "" {
 		status = "Downloading..."
 	}
-	statusView := d.spinner.View() + " " + t.S().Text.Faint(true).Render(status)
+	var statusView string
+	if t.IsAnimated() {
+		statusView = d.spinner.View() + " " + t.DialogHint.Render(status)
+	} else {
+		statusView = d.spinner.View() + " " + t.S().Text.Faint(true).Render(status)
+	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -316,9 +338,16 @@ func (d *pullDialogCmp) renderPulling(t *styles.Theme, baseStyle lipgloss.Style)
 }
 
 func (d *pullDialogCmp) renderError(t *styles.Theme, baseStyle lipgloss.Style) string {
-	title := t.S().Error.Render("Download Failed")
-	message := t.S().Text.Render(d.result.Message)
-	hint := t.S().Text.Faint(true).Render("Press any key to close")
+	var title, message, hint string
+	if t.IsAnimated() {
+		title = t.DialogTitle.Render("Download Failed")
+		message = t.DialogText.Render(d.result.Message)
+		hint = t.DialogHint.Render("Press any key to close")
+	} else {
+		title = t.S().Error.Render("Download Failed")
+		message = t.S().Text.Render(d.result.Message)
+		hint = t.S().Text.Faint(true).Render("Press any key to close")
+	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Center,

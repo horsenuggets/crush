@@ -357,6 +357,12 @@ func (m *modelDialogCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (m *modelDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		m.help.Styles = t.HelpStyles
+	} else {
+		m.help.Styles = t.S().Help
+	}
 
 	if m.showHyperDeviceFlow && m.hyperDeviceFlow != nil {
 		// Show Hyper device flow

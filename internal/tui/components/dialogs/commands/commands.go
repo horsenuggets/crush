@@ -200,6 +200,12 @@ func (c *commandDialogCmp) next() commandType {
 
 func (c *commandDialogCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them
+	if t.IsAnimated() {
+		c.help.Styles = t.HelpStyles
+	} else {
+		c.help.Styles = t.S().Help
+	}
 	listView := c.commandList
 	radio := c.commandTypeRadio()
 

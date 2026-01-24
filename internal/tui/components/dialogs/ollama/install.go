@@ -162,9 +162,16 @@ func (d *installDialogCmp) View() string {
 }
 
 func (d *installDialogCmp) renderPrompt(t *styles.Theme, baseStyle lipgloss.Style) string {
-	title := t.S().Title.Render("Ollama Not Installed")
-	question := "Would you like to install Ollama automatically?"
-	method := t.S().Text.Faint(true).Render(ollama.InstallMethod())
+	var title, question, method string
+	if t.IsAnimated() {
+		title = t.DialogTitle.Render("Ollama Not Installed")
+		question = t.DialogText.Render("Would you like to install Ollama automatically?")
+		method = t.DialogHint.Render(ollama.InstallMethod())
+	} else {
+		title = t.S().Title.Render("Ollama Not Installed")
+		question = "Would you like to install Ollama automatically?"
+		method = t.S().Text.Faint(true).Render(ollama.InstallMethod())
+	}
 
 	yesStyle := t.S().Text
 	noStyle := yesStyle
@@ -199,8 +206,14 @@ func (d *installDialogCmp) renderPrompt(t *styles.Theme, baseStyle lipgloss.Styl
 }
 
 func (d *installDialogCmp) renderInstalling(t *styles.Theme, baseStyle lipgloss.Style) string {
-	title := t.S().Title.Render("Installing Ollama")
-	spinner := t.S().Text.Faint(true).Render("Please wait...")
+	var title, spinner string
+	if t.IsAnimated() {
+		title = t.DialogTitle.Render("Installing Ollama")
+		spinner = t.DialogHint.Render("Please wait...")
+	} else {
+		title = t.S().Title.Render("Installing Ollama")
+		spinner = t.S().Text.Faint(true).Render("Please wait...")
+	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -211,9 +224,16 @@ func (d *installDialogCmp) renderInstalling(t *styles.Theme, baseStyle lipgloss.
 }
 
 func (d *installDialogCmp) renderError(t *styles.Theme, baseStyle lipgloss.Style) string {
-	title := t.S().Error.Render("Installation Failed")
-	message := t.S().Text.Render(d.result.Message)
-	hint := t.S().Text.Faint(true).Render("Press any key to close")
+	var title, message, hint string
+	if t.IsAnimated() {
+		title = t.DialogTitle.Render("Installation Failed")
+		message = t.DialogText.Render(d.result.Message)
+		hint = t.DialogHint.Render("Press any key to close")
+	} else {
+		title = t.S().Error.Render("Installation Failed")
+		message = t.S().Text.Render(d.result.Message)
+		hint = t.S().Text.Faint(true).Render("Press any key to close")
+	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
