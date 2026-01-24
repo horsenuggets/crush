@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"math"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/lucasb-eyer/go-colorful"
@@ -41,8 +42,8 @@ func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
 	h := hueOffset // All colors shift by the same amount
 
 	return []color.Color{
-		chromaSelection,            // 0: Primary - neutral white selection (not animated)
-		hsvColor(h, 0.7, 0.95),     // 1: Secondary - animated bright color
+		hsvColor(h, 0.45, 1.0),     // 0: Primary - pastel animated for selection bar
+		hsvColor(h+30, 0.45, 1.0),  // 1: Secondary - offset pastel for buttons
 		chromaFgBase,               // 2: Tertiary - white (used for ">" prompt, cached)
 		hsvColor(h, 1.0, 1.0),      // 3: Accent - animated rainbow
 		hsvColor(h, 1.0, 1.0),      // 4: BorderFocus - animated rainbow
@@ -85,6 +86,24 @@ func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 	t.AuthTextSelected = lipgloss.NewStyle().Foreground(accent)
 	t.AuthBorderUnselected = lipgloss.NewStyle().BorderForeground(chromaBorder)
 	t.AuthTextUnselected = lipgloss.NewStyle().Foreground(chromaFgMuted)
+
+	// Dialog styles - animated rainbow text for dialogs (they render fresh each frame)
+	pastel := hsvColor(h, 0.45, 1.0) // Match Secondary
+	t.DialogTitle = lipgloss.NewStyle().Foreground(accent).Bold(true)
+	t.DialogText = lipgloss.NewStyle().Foreground(pastel)
+	t.DialogHint = lipgloss.NewStyle().Foreground(chromaFgMuted).Faint(true)
+
+	// Help bar styles - animated shortcuts, neutral dots
+	base := lipgloss.NewStyle()
+	t.HelpStyles = help.Styles{
+		ShortKey:       base.Foreground(pastel),
+		ShortDesc:      base.Foreground(chromaFgMuted),
+		ShortSeparator: base.Foreground(chromaFgSubtle),
+		Ellipsis:       base.Foreground(chromaFgSubtle),
+		FullKey:        base.Foreground(pastel),
+		FullDesc:       base.Foreground(chromaFgMuted),
+		FullSeparator:  base.Foreground(chromaFgSubtle),
+	}
 }
 
 // NewChromaTheme creates an RGB gaming aesthetic theme with rainbow colors.
