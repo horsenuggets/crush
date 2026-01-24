@@ -29,7 +29,7 @@ var (
 	chromaFgSelected  = hsvColor(0, 0, 0.0)    // Black for contrast on light selection
 	chromaBgOverlay   = hsvColor(0, 0, 0.12)   // Dark gray overlay
 	chromaBorder      = hsvColor(0, 0, 0.25)   // Gray border
-	chromaSelection   = hsvColor(0, 0, 0.35)   // Semi-transparent white for selection
+	chromaSelection   = hsvColor(0, 0, 1.0)    // Bright white for selection
 )
 
 // chromaColorFunc generates animated rainbow colors based on hue offset.
