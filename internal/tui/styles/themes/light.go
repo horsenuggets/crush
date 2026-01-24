@@ -1,54 +1,52 @@
 package themes
 
 import (
-	"image/color"
-
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 )
 
 // Light theme colors - pastel palette for bright environments.
 var (
-	lightBgBase        = color.RGBA{R: 255, G: 255, B: 255, A: 255} // White
-	lightBgBaseLighter = color.RGBA{R: 250, G: 251, B: 252, A: 255} // Near white
-	lightBgSubtle      = color.RGBA{R: 243, G: 244, B: 246, A: 255} // Very light gray
-	lightBgOverlay     = color.RGBA{R: 229, G: 231, B: 235, A: 255} // Light gray
+	lightBgBase        = styles.ParseHex("#ffffff") // White
+	lightBgBaseLighter = styles.ParseHex("#fafbfc") // Near white
+	lightBgSubtle      = styles.ParseHex("#f3f4f6") // Very light gray
+	lightBgOverlay     = styles.ParseHex("#e5e7eb") // Light gray
 
-	lightFgBase      = color.RGBA{R: 31, G: 41, B: 55, A: 255}    // Dark gray (not pure black)
-	lightFgMuted     = color.RGBA{R: 107, G: 114, B: 128, A: 255} // Medium gray
-	lightFgHalfMuted = color.RGBA{R: 75, G: 85, B: 99, A: 255}    // Darker gray
-	lightFgSubtle    = color.RGBA{R: 156, G: 163, B: 175, A: 255} // Light gray text
-	lightFgSelected  = color.RGBA{R: 255, G: 255, B: 255, A: 255} // White for selection
+	lightFgBase      = styles.ParseHex("#1f2937") // Dark gray (not pure black)
+	lightFgMuted     = styles.ParseHex("#6b7280") // Medium gray
+	lightFgHalfMuted = styles.ParseHex("#4b5563") // Darker gray
+	lightFgSubtle    = styles.ParseHex("#9ca3af") // Light gray text
+	lightFgSelected  = styles.ParseHex("#ffffff") // White for selection
 
-	lightBorder      = color.RGBA{R: 229, G: 231, B: 235, A: 255} // Light border
-	lightBorderFocus = color.RGBA{R: 99, G: 102, B: 241, A: 255}  // Indigo
+	lightBorder      = styles.ParseHex("#e5e7eb") // Light border
+	lightBorderFocus = styles.ParseHex("#6366f1") // Indigo
 
-	lightPrimary   = color.RGBA{R: 99, G: 102, B: 241, A: 255}  // Indigo
-	lightSecondary = color.RGBA{R: 107, G: 114, B: 128, A: 255} // Gray
-	lightTertiary  = color.RGBA{R: 75, G: 85, B: 99, A: 255}    // Dark gray
-	lightAccent    = color.RGBA{R: 139, G: 92, B: 246, A: 255}  // Purple
+	lightPrimary   = styles.ParseHex("#6366f1") // Indigo
+	lightSecondary = styles.ParseHex("#6b7280") // Gray
+	lightTertiary  = styles.ParseHex("#4b5563") // Dark gray
+	lightAccent    = styles.ParseHex("#8b5cf6") // Purple
 
-	lightSuccess = color.RGBA{R: 74, G: 222, B: 128, A: 255}  // Pastel green
-	lightError   = color.RGBA{R: 251, G: 113, B: 133, A: 255} // Pastel red/rose
-	lightWarning = color.RGBA{R: 251, G: 191, B: 36, A: 255}  // Pastel amber
-	lightInfo    = color.RGBA{R: 96, G: 165, B: 250, A: 255}  // Pastel blue
+	lightSuccess = styles.ParseHex("#4ade80") // Pastel green
+	lightError   = styles.ParseHex("#fb7185") // Pastel red/rose
+	lightWarning = styles.ParseHex("#fbbf24") // Pastel amber
+	lightInfo    = styles.ParseHex("#60a5fa") // Pastel blue
 
-	lightWhite     = color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	lightBlueLight = color.RGBA{R: 191, G: 219, B: 254, A: 255} // Very light blue
-	lightBlueDark  = color.RGBA{R: 59, G: 130, B: 246, A: 255}  // Medium blue
-	lightBlue      = color.RGBA{R: 96, G: 165, B: 250, A: 255}  // Pastel blue
+	lightWhite     = styles.ParseHex("#ffffff")
+	lightBlueLight = styles.ParseHex("#bfdbfe") // Very light blue
+	lightBlueDark  = styles.ParseHex("#3b82f6") // Medium blue
+	lightBlue      = styles.ParseHex("#60a5fa") // Pastel blue
 
-	lightYellow = color.RGBA{R: 253, G: 224, B: 71, A: 255}  // Pastel yellow
-	lightCitron = color.RGBA{R: 251, G: 191, B: 36, A: 255}  // Amber
+	lightYellow = styles.ParseHex("#fde047") // Pastel yellow
+	lightCitron = styles.ParseHex("#fbbf24") // Amber
 
-	lightGreen      = color.RGBA{R: 74, G: 222, B: 128, A: 255}  // Pastel green
-	lightGreenDark  = color.RGBA{R: 34, G: 197, B: 94, A: 255}   // Medium green
-	lightGreenLight = color.RGBA{R: 134, G: 239, B: 172, A: 255} // Very light green
+	lightGreen      = styles.ParseHex("#4ade80") // Pastel green
+	lightGreenDark  = styles.ParseHex("#22c55e") // Medium green
+	lightGreenLight = styles.ParseHex("#86efac") // Very light green
 
-	lightRed      = color.RGBA{R: 251, G: 113, B: 133, A: 255} // Pastel rose
-	lightRedDark  = color.RGBA{R: 244, G: 63, B: 94, A: 255}   // Rose
-	lightRedLight = color.RGBA{R: 253, G: 164, B: 175, A: 255} // Very light rose
-	lightCherry   = color.RGBA{R: 236, G: 72, B: 153, A: 255}  // Pink
+	lightRed      = styles.ParseHex("#fb7185") // Pastel rose
+	lightRedDark  = styles.ParseHex("#f43f5e") // Rose
+	lightRedLight = styles.ParseHex("#fda4af") // Very light rose
+	lightCherry   = styles.ParseHex("#ec4899") // Pink
 )
 
 // NewLightTheme creates a light theme suitable for bright environments.
