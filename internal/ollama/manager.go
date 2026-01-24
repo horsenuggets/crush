@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -439,4 +440,153 @@ func splitFields(s string) []string {
 		fields = append(fields, s[start:])
 	}
 	return fields
+}
+
+// PullResult contains the result of a model pull operation.
+type PullResult struct {
+	Success bool
+	Message string
+}
+
+// PullProgress contains progress information during model download.
+type PullProgress struct {
+	Status    string  // Current status message
+	Digest    string  // Current layer digest being downloaded
+	Total     int64   // Total bytes for current layer
+	Completed int64   // Bytes completed for current layer
+	Percent   float64 // Overall progress percentage (0-100)
+	Done      bool    // True when pull is complete
+	Error     error   // Error if pull failed
+}
+
+// PullModelWithProgress downloads a model and sends progress updates to the channel.
+func PullModelWithProgress(ctx context.Context, model string, progress chan<- PullProgress) {
+	defer close(progress)
+	slog.Info("Pulling Ollama model with progress", "model", model)
+
+	reqBody := fmt.Sprintf(`{"name":%q}`, model)
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:11434/api/pull", strings.NewReader(reqBody))
+	if err != nil {
+		progress <- PullProgress{Error: err, Done: true}
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		progress <- PullProgress{Error: fmt.Errorf("failed to connect to Ollama: %w", err), Done: true}
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		progress <- PullProgress{Error: fmt.Errorf("pull failed with status %d", resp.StatusCode), Done: true}
+		return
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	for {
+		var line struct {
+			Status    string `json:"status"`
+			Digest    string `json:"digest"`
+			Total     int64  `json:"total"`
+			Completed int64  `json:"completed"`
+			Error     string `json:"error"`
+		}
+
+		if err := decoder.Decode(&line); err != nil {
+			if err.Error() == "EOF" {
+				progress <- PullProgress{Status: "Complete", Percent: 100, Done: true}
+				return
+			}
+			progress <- PullProgress{Error: err, Done: true}
+			return
+		}
+
+		if line.Error != "" {
+			progress <- PullProgress{Error: fmt.Errorf("%s", line.Error), Done: true}
+			return
+		}
+
+		p := PullProgress{
+			Status:    line.Status,
+			Digest:    line.Digest,
+			Total:     line.Total,
+			Completed: line.Completed,
+		}
+
+		if line.Total > 0 {
+			p.Percent = float64(line.Completed) / float64(line.Total) * 100
+		}
+
+		if line.Status == "success" {
+			p.Done = true
+			p.Percent = 100
+		}
+
+		progress <- p
+
+		if p.Done {
+			return
+		}
+	}
+}
+
+// PullModel downloads a model from Ollama's registry (blocking, no progress).
+func PullModel(ctx context.Context, model string) PullResult {
+	slog.Info("Pulling Ollama model", "model", model)
+
+	progress := make(chan PullProgress)
+	go PullModelWithProgress(ctx, model, progress)
+
+	var lastProgress PullProgress
+	for p := range progress {
+		lastProgress = p
+	}
+
+	if lastProgress.Error != nil {
+		slog.Error("Failed to pull model", "model", model, "error", lastProgress.Error)
+		return PullResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to pull model: %s", lastProgress.Error),
+		}
+	}
+
+	slog.Info("Successfully pulled model", "model", model)
+	return PullResult{
+		Success: true,
+		Message: fmt.Sprintf("Successfully pulled model %s", model),
+	}
+}
+
+// IsModelAvailable checks if a model is available locally.
+func IsModelAvailable(model string) bool {
+	models, err := GetInstalledModels()
+	if err != nil {
+		return false
+	}
+	for _, m := range models {
+		// Check exact match and match without tag
+		if m == model {
+			return true
+		}
+		// Also check if model matches the base name (e.g., "llama3.2" matches "llama3.2:latest")
+		if idx := indexOf(m, ':'); idx >= 0 {
+			if m[:idx] == model {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// indexOf returns the index of the first occurrence of c in s, or -1 if not found.
+func indexOf(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
 }
