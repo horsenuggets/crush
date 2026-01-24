@@ -202,7 +202,7 @@ type TUIOptions struct {
 	Theme             string `json:"theme,omitempty" jsonschema:"description=Color theme for the TUI interface,enum=charmtone,enum=dark,enum=light,default=charmtone"`
 	CursorStyle       string `json:"cursor_style,omitempty" jsonschema:"description=Cursor style in the editor,enum=bar,enum=block,enum=underline,default=bar"`
 	ScrollStep        int    `json:"scroll_step,omitempty" jsonschema:"description=Number of lines to scroll at a time,default=2,minimum=1,maximum=10"`
-	ShowYoloIndicator bool   `json:"show_yolo_indicator,omitempty" jsonschema:"description=Show yolo mode indicator in status bar,default=true"`
+	ShowYoloIndicator *bool `json:"show_yolo_indicator,omitempty" jsonschema:"description=Show yolo mode indicator in status bar,default=true"`
 
 	Completions Completions   `json:"completions,omitzero" jsonschema:"description=Completions UI options"`
 	Voice       *VoiceOptions `json:"voice,omitempty" jsonschema:"description=Voice input options using OpenAI Whisper"`
@@ -472,6 +472,14 @@ func (c *Config) SetCompactMode(enabled bool) error {
 	}
 	c.Options.TUI.CompactMode = enabled
 	return c.SetConfigField("options.tui.compact_mode", enabled)
+}
+
+func (c *Config) SetTheme(theme string) error {
+	if c.Options == nil {
+		c.Options = &Options{}
+	}
+	c.Options.TUI.Theme = theme
+	return c.SetConfigField("options.tui.theme", theme)
 }
 
 func (c *Config) Resolve(key string) (string, error) {
