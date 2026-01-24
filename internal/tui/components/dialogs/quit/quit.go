@@ -72,10 +72,10 @@ func (q *quitDialogCmp) View() string {
 	noStyle := yesStyle
 
 	if q.selectedNo {
-		noStyle = noStyle.Foreground(t.White).Background(t.Secondary)
+		noStyle = noStyle.Foreground(t.FgSelected).Background(t.Secondary)
 		yesStyle = yesStyle.Background(t.BgSubtle)
 	} else {
-		yesStyle = yesStyle.Foreground(t.White).Background(t.Secondary)
+		yesStyle = yesStyle.Foreground(t.FgSelected).Background(t.Secondary)
 		noStyle = noStyle.Background(t.BgSubtle)
 	}
 

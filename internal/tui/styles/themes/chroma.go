@@ -62,11 +62,8 @@ func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 	accent := hsvColor(h, 1.0, 1.0)
 	bgDark := hsvColor(h, 0.6, 0.10)
 
-	// Animated text colors - components that render fresh each frame will pick these up
-	// Cached components (like list items) will stay at their initial color
-	t.FgBase = hsvColor(h, 0.15, 0.95)      // Main text - very subtle tint
-	t.FgMuted = hsvColor(h, 0.12, 0.7)      // Muted text - subtle tint
-	t.FgHalfMuted = hsvColor(h, 0.13, 0.82) // Half-muted text
+	// Text colors stay neutral gray - they get cached and can't animate reliably
+	// Only accents, borders, backgrounds, and specific UI elements animate
 
 	// Text selection uses neutral selection color (not animated for caching)
 	t.TextSelection = lipgloss.NewStyle().Foreground(chromaFgSelected).Background(chromaSelection)
