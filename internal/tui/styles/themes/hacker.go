@@ -16,7 +16,7 @@ var (
 	hackerFgMuted     = styles.ParseHex("#00b432") // Darker green
 	hackerFgHalfMuted = styles.ParseHex("#00c837") // Medium green
 	hackerFgSubtle    = styles.ParseHex("#008c28") // Subtle green
-	hackerFgSelected  = styles.ParseHex("#b4ffb4") // Bright green
+	hackerFgSelected  = styles.ParseHex("#000000") // Black for contrast on green selection
 
 	hackerBorder      = styles.ParseHex("#005019") // Dark green border
 	hackerBorderFocus = styles.ParseHex("#00ff41") // Bright green
