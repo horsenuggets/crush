@@ -34,25 +34,25 @@ var (
 
 // chromaColorFunc generates animated rainbow colors based on hue offset.
 // All animated colors use the SAME base hue offset so they move together in sync.
-// Primary is kept neutral (gray) for selection to avoid cache issues.
+// Primary is kept neutral (white) for selection to avoid cache issues.
 // Returns: Primary, Secondary, Tertiary, Accent, BorderFocus, Success, Error, Warning, Info,
 // BgBase, BgBaseLighter, BgSubtle
 func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
 	h := hueOffset // All colors shift by the same amount
 
 	return []color.Color{
-		chromaSelection,            // 0: Primary - neutral gray selection (not animated)
-		hsvColor(h, 0.8, 0.9),      // 1: Secondary - animated
-		hsvColor(h, 0.7, 0.85),     // 2: Tertiary - animated
+		chromaSelection,            // 0: Primary - neutral white selection (not animated)
+		hsvColor(h, 0.5, 0.95),     // 1: Secondary - animated, subtle saturation
+		chromaFgBase,               // 2: Tertiary - white (used for ">" prompt, cached)
 		hsvColor(h, 1.0, 1.0),      // 3: Accent - animated rainbow
 		hsvColor(h, 1.0, 1.0),      // 4: BorderFocus - animated rainbow
-		hsvColor(h, 0.9, 0.9),      // 5: Success - animated (checkmarks)
+		chromaFgBase,               // 5: Success - white (used for checkmarks, cached)
 		hsvColor(h+180, 0.9, 0.85), // 6: Error - opposite hue for contrast
 		hsvColor(h, 1.0, 1.0),      // 7: Warning - animated
 		hsvColor(h, 0.85, 0.9),     // 8: Info - animated
-		hsvColor(h, 0.4, 0.06),     // 9: BgBase - subtle tinted background
-		hsvColor(h, 0.35, 0.08),    // 10: BgBaseLighter
-		hsvColor(h, 0.3, 0.11),     // 11: BgSubtle
+		hsvColor(h, 0.6, 0.10),     // 9: BgBase - more saturated tinted background
+		hsvColor(h, 0.55, 0.12),    // 10: BgBaseLighter
+		hsvColor(h, 0.5, 0.15),     // 11: BgSubtle
 	}
 }
 
@@ -60,7 +60,13 @@ func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
 func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 	h := hueOffset
 	accent := hsvColor(h, 1.0, 1.0)
-	bgDark := hsvColor(h, 0.4, 0.06)
+	bgDark := hsvColor(h, 0.6, 0.10)
+
+	// Animated text colors - all text shifts with subtle saturation
+	t.FgBase = hsvColor(h, 0.25, 0.95)      // Main text - subtle tint
+	t.FgMuted = hsvColor(h, 0.2, 0.7)       // Muted text - subtle tint
+	t.FgHalfMuted = hsvColor(h, 0.22, 0.82) // Half-muted text
+	// FgSubtle stays neutral gray for less important elements
 
 	// Text selection uses neutral selection color (not animated for caching)
 	t.TextSelection = lipgloss.NewStyle().Foreground(chromaFgSelected).Background(chromaSelection)
@@ -112,11 +118,11 @@ func NewChromaTheme() *styles.Theme {
 		BgSubtle:      initialColors[11],
 		BgOverlay:     chromaBgOverlay,
 
-		// Static neutral foregrounds for readability
-		FgBase:      chromaFgBase,
-		FgMuted:     chromaFgMuted,
-		FgHalfMuted: chromaFgHalfMuted,
-		FgSubtle:    chromaFgSubtle,
+		// Animated foreground colors with subtle saturation
+		FgBase:      hsvColor(0, 0.25, 0.95),  // Animated via StyleBuilder
+		FgMuted:     hsvColor(0, 0.2, 0.7),    // Animated via StyleBuilder
+		FgHalfMuted: hsvColor(0, 0.22, 0.82),  // Animated via StyleBuilder
+		FgSubtle:    chromaFgSubtle,           // Stays neutral gray
 		FgSelected:  chromaFgSelected,
 
 		// Borders
