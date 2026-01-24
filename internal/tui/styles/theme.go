@@ -198,8 +198,14 @@ func (t *Theme) AdvanceAnimation() bool {
 	elapsed := time.Since(t.animStartTime).Seconds()
 	newHueOffset := math.Mod(elapsed*t.AnimationSpeed, 360)
 
+	// Calculate hue difference accounting for circular wrap-around (0-360)
+	hueDiff := math.Abs(newHueOffset - t.animHueOffset)
+	if hueDiff > 180 {
+		hueDiff = 360 - hueDiff // Handle wrap-around (e.g., 359 to 1 is 2 degrees, not 358)
+	}
+
 	// Only update if hue changed significantly (at least 1 degree)
-	if math.Abs(newHueOffset-t.animHueOffset) < 1 {
+	if hueDiff < 1 {
 		return false
 	}
 
