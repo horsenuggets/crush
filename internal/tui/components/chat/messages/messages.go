@@ -165,7 +165,12 @@ func (msg *messageCmp) style() lipgloss.Style {
 
 	style := t.S().Text
 	if msg.message.Role == message.User {
-		style = style.PaddingLeft(1).BorderLeft(true).BorderStyle(borderStyle).BorderForeground(t.Primary)
+		if t.IsAnimated() {
+			// Use fresh style with animated border color
+			style = lipgloss.NewStyle().Foreground(t.FgBase).PaddingLeft(1).BorderLeft(true).BorderStyle(borderStyle).BorderForeground(t.Primary)
+		} else {
+			style = style.PaddingLeft(1).BorderLeft(true).BorderStyle(borderStyle).BorderForeground(t.Primary)
+		}
 	} else {
 		if msg.focused {
 			style = style.PaddingLeft(1).BorderLeft(true).BorderStyle(borderStyle).BorderForeground(t.GreenDark)
