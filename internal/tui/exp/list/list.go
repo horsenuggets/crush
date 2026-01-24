@@ -496,11 +496,17 @@ func (l *list[T]) View() string {
 		return ""
 	}
 
-	if !l.cachedViewDirty && l.cachedViewOffset == l.offset && !l.hasSelection() && l.cachedView != "" {
+	t := styles.CurrentTheme()
+
+	// Skip cache for animated themes - they need fresh renders each frame
+	if !t.IsAnimated() && !l.cachedViewDirty && l.cachedViewOffset == l.offset && !l.hasSelection() && l.cachedView != "" {
 		return l.cachedView
 	}
 
-	t := styles.CurrentTheme()
+	// Clear item render cache for animated themes
+	if t.IsAnimated() {
+		l.renderedItems = make(map[string]renderedItem)
+	}
 
 	start, end := l.viewPosition()
 	viewStart := max(0, start)
@@ -522,9 +528,12 @@ func (l *list[T]) View() string {
 		Render(view)
 
 	if !l.hasSelection() {
-		l.cachedView = view
-		l.cachedViewOffset = l.offset
-		l.cachedViewDirty = false
+		// Don't cache for animated themes
+		if !t.IsAnimated() {
+			l.cachedView = view
+			l.cachedViewOffset = l.offset
+			l.cachedViewDirty = false
+		}
 		return view
 	}
 

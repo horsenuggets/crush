@@ -122,8 +122,14 @@ func (c *completionItemCmp[T]) View() string {
 	}
 
 	if c.focus {
-		titleStyle = t.S().TextSelected.Width(innerWidth)
-		titleMatchStyle = t.S().TextSelected.Underline(true)
+		if t.IsAnimated() {
+			// Use animated selection colors for animated themes
+			titleStyle = lipgloss.NewStyle().Foreground(t.FgSelected).Background(t.Primary).Width(innerWidth)
+			titleMatchStyle = lipgloss.NewStyle().Foreground(t.FgSelected).Background(t.Primary).Underline(true)
+		} else {
+			titleStyle = t.S().TextSelected.Width(innerWidth)
+			titleMatchStyle = t.S().TextSelected.Underline(true)
+		}
 		itemStyle = itemStyle.Background(t.Primary)
 	}
 
@@ -154,7 +160,11 @@ func (c *completionItemCmp[T]) View() string {
 		// Add the shortcut at the end
 		shortcutStyle := t.S().Muted
 		if c.focus {
-			shortcutStyle = t.S().TextSelected
+			if t.IsAnimated() {
+				shortcutStyle = lipgloss.NewStyle().Foreground(t.FgSelected).Background(t.Primary)
+			} else {
+				shortcutStyle = t.S().TextSelected
+			}
 		}
 		parts = append(parts, shortcutStyle.Render(c.shortcut))
 	}
