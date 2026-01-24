@@ -1,13 +1,14 @@
-package styles
+package themes
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/x/exp/charmtone"
 )
 
 // NewDarkTheme creates a minimal dark theme with neutral colors.
-func NewDarkTheme() *Theme {
-	t := &Theme{
+func NewDarkTheme() *styles.Theme {
+	t := &styles.Theme{
 		Name:   "dark",
 		IsDark: true,
 

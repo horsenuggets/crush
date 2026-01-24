@@ -528,20 +528,69 @@ func CurrentTheme() *Theme {
 	return initDefaultManager().Current()
 }
 
+// pendingThemes holds themes registered before the manager is initialized.
+var pendingThemes []*Theme
+
+// RegisterTheme registers a theme. Call this from theme init() functions.
+func RegisterTheme(theme *Theme) {
+	if defaultManager != nil {
+		defaultManager.Register(theme)
+	} else {
+		pendingThemes = append(pendingThemes, theme)
+	}
+}
+
 func newManager() *Manager {
 	m := &Manager{
 		themes: make(map[string]*Theme),
 	}
 
-	// Register all available themes
-	m.Register(NewCharmtoneTheme())
-	m.Register(NewDarkTheme())
-	m.Register(NewLightTheme())
+	// Register themes that were added before manager initialization
+	for _, theme := range pendingThemes {
+		m.Register(theme)
+	}
+	pendingThemes = nil
 
-	// Set default theme
-	m.current = m.themes["charmtone"]
+	// Set default theme (fallback to first registered if "dark" not found)
+	if theme, ok := m.themes["dark"]; ok {
+		m.current = theme
+	} else if len(m.themes) > 0 {
+		for _, theme := range m.themes {
+			m.current = theme
+			break
+		}
+	} else {
+		// Fallback theme for tests that don't import themes package
+		m.current = newFallbackTheme()
+	}
 
 	return m
+}
+
+// newFallbackTheme creates a minimal theme for testing.
+func newFallbackTheme() *Theme {
+	return &Theme{
+		Name:        "fallback",
+		IsDark:      true,
+		Primary:     charmtone.Iron,
+		Secondary:   charmtone.Smoke,
+		Tertiary:    charmtone.Ash,
+		Accent:      charmtone.Malibu,
+		BgBase:      charmtone.Pepper,
+		BgSubtle:    charmtone.Charcoal,
+		BgOverlay:   charmtone.Iron,
+		FgBase:      charmtone.Ash,
+		FgMuted:     charmtone.Oyster,
+		FgHalfMuted: charmtone.Smoke,
+		FgSubtle:    charmtone.Squid,
+		FgSelected:  charmtone.Salt,
+		Border:      charmtone.Charcoal,
+		BorderFocus: charmtone.Malibu,
+		Success:     charmtone.Guac,
+		Error:       charmtone.Coral,
+		Warning:     charmtone.Citron,
+		Info:        charmtone.Malibu,
+	}
 }
 
 func (m *Manager) Register(theme *Theme) {

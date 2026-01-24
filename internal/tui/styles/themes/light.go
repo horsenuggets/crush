@@ -1,58 +1,59 @@
-package styles
+package themes
 
 import (
 	"image/color"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/crush/internal/tui/styles"
 )
 
-// Light theme colors.
+// Light theme colors - pastel palette for bright environments.
 var (
 	lightBgBase        = color.RGBA{R: 255, G: 255, B: 255, A: 255} // White
-	lightBgBaseLighter = color.RGBA{R: 250, G: 250, B: 250, A: 255} // Near white
-	lightBgSubtle      = color.RGBA{R: 240, G: 240, B: 240, A: 255} // Light gray
-	lightBgOverlay     = color.RGBA{R: 230, G: 230, B: 230, A: 255} // Slightly darker
+	lightBgBaseLighter = color.RGBA{R: 250, G: 251, B: 252, A: 255} // Near white
+	lightBgSubtle      = color.RGBA{R: 243, G: 244, B: 246, A: 255} // Very light gray
+	lightBgOverlay     = color.RGBA{R: 229, G: 231, B: 235, A: 255} // Light gray
 
-	lightFgBase      = color.RGBA{R: 32, G: 32, B: 32, A: 255}    // Near black
-	lightFgMuted     = color.RGBA{R: 100, G: 100, B: 100, A: 255} // Dark gray
-	lightFgHalfMuted = color.RGBA{R: 80, G: 80, B: 80, A: 255}    // Medium gray
-	lightFgSubtle    = color.RGBA{R: 140, G: 140, B: 140, A: 255} // Light gray text
+	lightFgBase      = color.RGBA{R: 31, G: 41, B: 55, A: 255}    // Dark gray (not pure black)
+	lightFgMuted     = color.RGBA{R: 107, G: 114, B: 128, A: 255} // Medium gray
+	lightFgHalfMuted = color.RGBA{R: 75, G: 85, B: 99, A: 255}    // Darker gray
+	lightFgSubtle    = color.RGBA{R: 156, G: 163, B: 175, A: 255} // Light gray text
 	lightFgSelected  = color.RGBA{R: 255, G: 255, B: 255, A: 255} // White for selection
 
-	lightBorder      = color.RGBA{R: 210, G: 210, B: 210, A: 255} // Border gray
-	lightBorderFocus = color.RGBA{R: 59, G: 130, B: 246, A: 255}  // Blue
+	lightBorder      = color.RGBA{R: 229, G: 231, B: 235, A: 255} // Light border
+	lightBorderFocus = color.RGBA{R: 99, G: 102, B: 241, A: 255}  // Indigo
 
-	lightPrimary   = color.RGBA{R: 59, G: 130, B: 246, A: 255}  // Blue
-	lightSecondary = color.RGBA{R: 100, G: 100, B: 100, A: 255} // Gray
-	lightTertiary  = color.RGBA{R: 80, G: 80, B: 80, A: 255}    // Dark gray
-	lightAccent    = color.RGBA{R: 59, G: 130, B: 246, A: 255}  // Blue
+	lightPrimary   = color.RGBA{R: 99, G: 102, B: 241, A: 255}  // Indigo
+	lightSecondary = color.RGBA{R: 107, G: 114, B: 128, A: 255} // Gray
+	lightTertiary  = color.RGBA{R: 75, G: 85, B: 99, A: 255}    // Dark gray
+	lightAccent    = color.RGBA{R: 139, G: 92, B: 246, A: 255}  // Purple
 
-	lightSuccess = color.RGBA{R: 34, G: 150, B: 84, A: 255}   // Green
-	lightError   = color.RGBA{R: 220, G: 53, B: 69, A: 255}   // Red
-	lightWarning = color.RGBA{R: 200, G: 150, B: 30, A: 255}  // Yellow/orange
-	lightInfo    = color.RGBA{R: 59, G: 130, B: 246, A: 255}  // Blue
+	lightSuccess = color.RGBA{R: 74, G: 222, B: 128, A: 255}  // Pastel green
+	lightError   = color.RGBA{R: 251, G: 113, B: 133, A: 255} // Pastel red/rose
+	lightWarning = color.RGBA{R: 251, G: 191, B: 36, A: 255}  // Pastel amber
+	lightInfo    = color.RGBA{R: 96, G: 165, B: 250, A: 255}  // Pastel blue
 
 	lightWhite     = color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	lightBlueLight = color.RGBA{R: 147, G: 197, B: 253, A: 255}
-	lightBlueDark  = color.RGBA{R: 30, G: 64, B: 175, A: 255}
-	lightBlue      = color.RGBA{R: 59, G: 130, B: 246, A: 255}
+	lightBlueLight = color.RGBA{R: 191, G: 219, B: 254, A: 255} // Very light blue
+	lightBlueDark  = color.RGBA{R: 59, G: 130, B: 246, A: 255}  // Medium blue
+	lightBlue      = color.RGBA{R: 96, G: 165, B: 250, A: 255}  // Pastel blue
 
-	lightYellow = color.RGBA{R: 202, G: 138, B: 4, A: 255}
-	lightCitron = color.RGBA{R: 234, G: 179, B: 8, A: 255}
+	lightYellow = color.RGBA{R: 253, G: 224, B: 71, A: 255}  // Pastel yellow
+	lightCitron = color.RGBA{R: 251, G: 191, B: 36, A: 255}  // Amber
 
-	lightGreen      = color.RGBA{R: 34, G: 150, B: 84, A: 255}
-	lightGreenDark  = color.RGBA{R: 22, G: 101, B: 52, A: 255}
-	lightGreenLight = color.RGBA{R: 74, G: 222, B: 128, A: 255}
+	lightGreen      = color.RGBA{R: 74, G: 222, B: 128, A: 255}  // Pastel green
+	lightGreenDark  = color.RGBA{R: 34, G: 197, B: 94, A: 255}   // Medium green
+	lightGreenLight = color.RGBA{R: 134, G: 239, B: 172, A: 255} // Very light green
 
-	lightRed      = color.RGBA{R: 220, G: 53, B: 69, A: 255}
-	lightRedDark  = color.RGBA{R: 153, G: 27, B: 27, A: 255}
-	lightRedLight = color.RGBA{R: 248, G: 113, B: 113, A: 255}
-	lightCherry   = color.RGBA{R: 190, G: 24, B: 93, A: 255}
+	lightRed      = color.RGBA{R: 251, G: 113, B: 133, A: 255} // Pastel rose
+	lightRedDark  = color.RGBA{R: 244, G: 63, B: 94, A: 255}   // Rose
+	lightRedLight = color.RGBA{R: 253, G: 164, B: 175, A: 255} // Very light rose
+	lightCherry   = color.RGBA{R: 236, G: 72, B: 153, A: 255}  // Pink
 )
 
 // NewLightTheme creates a light theme suitable for bright environments.
-func NewLightTheme() *Theme {
-	t := &Theme{
+func NewLightTheme() *styles.Theme {
+	t := &styles.Theme{
 		Name:   "light",
 		IsDark: false,
 

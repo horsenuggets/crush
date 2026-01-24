@@ -1,12 +1,13 @@
-package styles
+package themes
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/x/exp/charmtone"
 )
 
-func NewCharmtoneTheme() *Theme {
-	t := &Theme{
+func NewCharmtoneTheme() *styles.Theme {
+	t := &styles.Theme{
 		Name:   "charmtone",
 		IsDark: true,
 

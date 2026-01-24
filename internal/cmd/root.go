@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/tui/exp/list"
 	"github.com/charmbracelet/crush/internal/tui/styles"
+	_ "github.com/charmbracelet/crush/internal/tui/styles/themes" // Register themes
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/projects"
 	"github.com/charmbracelet/crush/internal/stringext"
