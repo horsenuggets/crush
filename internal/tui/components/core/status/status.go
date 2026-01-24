@@ -59,6 +59,12 @@ func (m *statusCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 
 func (m *statusCmp) View() string {
 	t := styles.CurrentTheme()
+	// Use animated help styles if theme provides them, otherwise use cached theme styles
+	if t.IsAnimated() {
+		m.help.Styles = t.HelpStyles
+	} else {
+		m.help.Styles = t.S().Help
+	}
 	status := t.S().Base.Padding(0, 1, 1, 1).Render(m.help.View(m.keyMap))
 	if m.info.Msg != "" {
 		status = m.infoMsg()
@@ -70,6 +76,33 @@ func (m *statusCmp) infoMsg() string {
 	t := styles.CurrentTheme()
 	message := ""
 	infoType := ""
+
+	// For animated themes, use animated accent colors for the notification bar
+	if t.IsAnimated() {
+		switch m.info.Type {
+		case util.InfoTypeError:
+			infoType = lipgloss.NewStyle().Foreground(t.FgSelected).Background(t.Error).Padding(0, 1).Bold(true).Render("ERROR")
+			widthLeft := m.width - (lipgloss.Width(infoType) + 2)
+			info := ansi.Truncate(m.info.Msg, widthLeft, "…")
+			message = lipgloss.NewStyle().Background(t.BgSubtle).Width(widthLeft+2).Foreground(t.FgBase).Padding(0, 1).Render(info)
+		case util.InfoTypeWarn:
+			infoType = lipgloss.NewStyle().Foreground(t.FgSelected).Background(t.Warning).Padding(0, 1).Bold(true).Render("WARNING")
+			widthLeft := m.width - (lipgloss.Width(infoType) + 2)
+			info := ansi.Truncate(m.info.Msg, widthLeft, "…")
+			message = lipgloss.NewStyle().Background(t.BgSubtle).Width(widthLeft+2).Foreground(t.FgBase).Padding(0, 1).Render(info)
+		default:
+			note := "OKAY!"
+			if m.info.Type == util.InfoTypeUpdate {
+				note = "HEY!"
+			}
+			infoType = lipgloss.NewStyle().Foreground(t.FgSelected).Background(t.Primary).Padding(0, 1).Bold(true).Render(note)
+			widthLeft := m.width - (lipgloss.Width(infoType) + 2)
+			info := ansi.Truncate(m.info.Msg, widthLeft, "…")
+			message = lipgloss.NewStyle().Background(t.BgSubtle).Width(widthLeft+2).Foreground(t.FgBase).Padding(0, 1).Render(info)
+		}
+		return ansi.Truncate(infoType+message, m.width, "…")
+	}
+
 	switch m.info.Type {
 	case util.InfoTypeError:
 		infoType = t.S().Base.Background(t.Red).Padding(0, 1).Render("ERROR")
