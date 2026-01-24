@@ -106,6 +106,14 @@ type Theme struct {
 	AuthBorderUnselected lipgloss.Style
 	AuthTextUnselected   lipgloss.Style
 
+	// Dialog styles (can be animated since dialogs render fresh each frame)
+	DialogTitle lipgloss.Style
+	DialogText  lipgloss.Style
+	DialogHint  lipgloss.Style
+
+	// Help bar styles (can be animated)
+	HelpStyles help.Styles
+
 	styles     *Styles
 	stylesOnce sync.Once
 	stylesMu   sync.RWMutex // Protects styles and stylesOnce for thread-safe reloading
@@ -863,6 +871,47 @@ func ApplyForegroundGrad(input string, color1, color2 color.Color) string {
 	return o.String()
 }
 
+// ApplyAnimatedGrad renders a string with a sweeping rainbow gradient that
+// moves based on the theme's current animation offset. Creates a wave effect.
+func ApplyAnimatedGrad(input string) string {
+	if input == "" {
+		return ""
+	}
+	t := CurrentTheme()
+	if !t.IsAnimated() {
+		return t.S().Text.Render(input)
+	}
+
+	// Get current hue offset (0-360)
+	hueOffset := t.GetHueOffset()
+
+	// Create a sweeping rainbow by generating colors based on position + offset
+	var clusters []string
+	gr := uniseg.NewGraphemes(input)
+	for gr.Next() {
+		clusters = append(clusters, string(gr.Runes()))
+	}
+
+	if len(clusters) == 0 {
+		return ""
+	}
+
+	// Generate rainbow colors that sweep based on hueOffset
+	// Each character gets a hue shifted by position, plus the animation offset
+	var o strings.Builder
+	for i, cluster := range clusters {
+		// Spread 60 degrees of hue across the text, offset by animation
+		charHue := hueOffset + float64(i)*60.0/float64(len(clusters))
+		charHue = math.Mod(charHue, 360)
+
+		// Create color using HSV (saturation 0.8, value 1.0 for bright pastels)
+		c := colorful.Hsv(charHue, 0.7, 1.0)
+		style := t.S().Base.Foreground(c)
+		o.WriteString(style.Render(cluster))
+	}
+	return o.String()
+}
+
 // ApplyBoldForegroundGrad renders a given string with a horizontal gradient
 // foreground.
 func ApplyBoldForegroundGrad(input string, color1, color2 color.Color) string {
@@ -935,8 +984,8 @@ type ThemeChangedMsg struct {
 // AnimationTickMsg is sent when theme animation should advance.
 type AnimationTickMsg struct{}
 
-// AnimationTickInterval is the interval between animation ticks.
-const AnimationTickInterval = 100 * time.Millisecond
+// AnimationTickInterval is the interval between animation ticks (20hz = 50ms).
+const AnimationTickInterval = 50 * time.Millisecond
 
 // AnimationTickCmd returns a command that sends AnimationTickMsg after the tick interval.
 func AnimationTickCmd() tea.Cmd {
