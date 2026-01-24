@@ -22,6 +22,7 @@ import (
 	"github.com/charmbracelet/crush/internal/agent/providers/claudecli"
 	"github.com/charmbracelet/crush/internal/agent/tools"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/ollama"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/history"
 	"github.com/charmbracelet/crush/internal/log"
@@ -60,12 +61,13 @@ type Coordinator interface {
 }
 
 type coordinator struct {
-	cfg         *config.Config
-	sessions    session.Service
-	messages    message.Service
-	permissions permission.Service
-	history     history.Service
-	lspClients  *csync.Map[string, *lsp.Client]
+	cfg           *config.Config
+	sessions      session.Service
+	messages      message.Service
+	permissions   permission.Service
+	history       history.Service
+	lspClients    *csync.Map[string, *lsp.Client]
+	ollamaManager *ollama.Manager
 
 	currentAgent SessionAgent
 	agents       map[string]SessionAgent
@@ -81,15 +83,17 @@ func NewCoordinator(
 	permissions permission.Service,
 	history history.Service,
 	lspClients *csync.Map[string, *lsp.Client],
+	ollamaManager *ollama.Manager,
 ) (Coordinator, error) {
 	c := &coordinator{
-		cfg:         cfg,
-		sessions:    sessions,
-		messages:    messages,
-		permissions: permissions,
-		history:     history,
-		lspClients:  lspClients,
-		agents:      make(map[string]SessionAgent),
+		cfg:           cfg,
+		sessions:      sessions,
+		messages:      messages,
+		permissions:   permissions,
+		history:       history,
+		lspClients:    lspClients,
+		ollamaManager: ollamaManager,
+		agents:        make(map[string]SessionAgent),
 	}
 
 	agentCfg, ok := cfg.Agents[config.AgentCoder]
@@ -775,6 +779,15 @@ func (c *coordinator) buildProvider(providerCfg config.ProviderConfig, model con
 				providerCfg.ExtraBody = map[string]any{}
 			}
 			providerCfg.ExtraBody["tool_stream"] = true
+		}
+		// Check if this is an Ollama provider and ensure server is running
+		if ollama.IsOllamaURL(baseURL) && c.ollamaManager != nil {
+			if err := c.ollamaManager.EnsureRunning(context.Background()); err != nil {
+				return nil, err
+			}
+			if err := c.ollamaManager.RegisterUsage(model.Model); err != nil {
+				slog.Warn("Failed to register Ollama usage", "error", err)
+			}
 		}
 		return c.buildOpenaiCompatProvider(baseURL, apiKey, headers, providerCfg.ExtraBody, providerCfg.ID, isSubAgent)
 	case hyper.Name:

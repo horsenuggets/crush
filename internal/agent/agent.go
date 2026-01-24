@@ -33,6 +33,7 @@ import (
 	"github.com/charmbracelet/crush/internal/agent/hyper"
 	"github.com/charmbracelet/crush/internal/agent/tools"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/ollama"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/permission"
@@ -498,7 +499,18 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (*fantasy
 		} else if errors.As(err, &fantasyErr) {
 			currentAssistant.AddFinish(message.FinishReasonError, cmp.Or(stringext.Capitalize(fantasyErr.Title), defaultTitle), fantasyErr.Message)
 		} else {
-			currentAssistant.AddFinish(message.FinishReasonError, defaultTitle, err.Error())
+			// Check for Ollama/local model errors and wrap them with user-friendly messages
+			wrappedErr := ollama.WrapError(err, largeModel.Model.Provider())
+			var ollamaErr *ollama.OllamaError
+			if errors.As(wrappedErr, &ollamaErr) {
+				msg := ollamaErr.Message
+				if ollamaErr.Action != "" {
+					msg += "\n\n" + ollamaErr.Action
+				}
+				currentAssistant.AddFinish(message.FinishReasonError, ollamaErr.Title, msg)
+			} else {
+				currentAssistant.AddFinish(message.FinishReasonError, defaultTitle, err.Error())
+			}
 		}
 		// Note: we use the parent context here because the genCtx has been
 		// cancelled.

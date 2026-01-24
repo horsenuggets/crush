@@ -22,6 +22,7 @@ import (
 	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
 	"github.com/charmbracelet/crush/internal/config"
 	crushctx "github.com/charmbracelet/crush/internal/context"
+	"github.com/charmbracelet/crush/internal/ollama"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/format"
@@ -62,6 +63,9 @@ type App struct {
 	// ContextManager handles shared state between parallel Crush instances.
 	ContextManager *crushctx.Manager
 
+	// OllamaManager handles Ollama server lifecycle.
+	OllamaManager *ollama.Manager
+
 	config *config.Config
 
 	serviceEventsWG *sync.WaitGroup
@@ -93,6 +97,12 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 		// Non-fatal: continue without context sharing
 	}
 
+	// Initialize Ollama manager for local model lifecycle
+	var ollamaManager *ollama.Manager
+	if ctxManager != nil {
+		ollamaManager = ollama.NewManager(ctxManager.InstanceID(), cfg.Options.DataDirectory)
+	}
+
 	app := &App{
 		Sessions:       sessions,
 		Messages:       messages,
@@ -100,6 +110,7 @@ func New(ctx context.Context, conn *sql.DB, cfg *config.Config) (*App, error) {
 		Permissions:    permission.NewPermissionService(cfg.WorkingDir(), skipPermissionsRequests, allowedTools),
 		LSPClients:     csync.NewMap[string, *lsp.Client](),
 		ContextManager: ctxManager,
+		OllamaManager:  ollamaManager,
 
 		globalCtx: ctx,
 
@@ -483,6 +494,7 @@ func (app *App) InitCoderAgent(ctx context.Context) error {
 		app.Permissions,
 		app.History,
 		app.LSPClients,
+		app.OllamaManager,
 	)
 	if err != nil {
 		slog.Error("Failed to create coder agent", "err", err)
@@ -532,6 +544,13 @@ func (app *App) Shutdown() {
 	if app.ContextManager != nil {
 		if err := app.ContextManager.Unregister(); err != nil {
 			slog.Warn("Failed to unregister from shared context", "error", err)
+		}
+	}
+
+	// Shutdown Ollama manager (may stop server if no other instances using it)
+	if app.OllamaManager != nil {
+		if err := app.OllamaManager.Shutdown(); err != nil {
+			slog.Warn("Failed to shutdown Ollama manager", "error", err)
 		}
 	}
 
