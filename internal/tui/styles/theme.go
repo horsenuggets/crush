@@ -100,6 +100,7 @@ type Theme struct {
 
 	styles     *Styles
 	stylesOnce sync.Once
+	stylesMu   sync.RWMutex // Protects styles and stylesOnce for thread-safe reloading
 }
 
 type Styles struct {
@@ -136,9 +137,25 @@ type Styles struct {
 }
 
 func (t *Theme) S() *Styles {
-	t.stylesOnce.Do(func() {
-		t.styles = t.buildStyles()
-	})
+	// Fast path: check if styles already exist with read lock
+	t.stylesMu.RLock()
+	if t.styles != nil {
+		s := t.styles
+		t.stylesMu.RUnlock()
+		return s
+	}
+	t.stylesMu.RUnlock()
+
+	// Slow path: need to build styles with write lock
+	t.stylesMu.Lock()
+	defer t.stylesMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if t.styles != nil {
+		return t.styles
+	}
+
+	t.styles = t.buildStyles()
 	return t.styles
 }
 
@@ -659,8 +676,9 @@ func (m *Manager) ScrollStep() int {
 // This allows hot-reloading of cursor style and other theme options.
 func (m *Manager) ReloadThemes() {
 	for _, theme := range m.themes {
+		theme.stylesMu.Lock()
 		theme.styles = nil
-		theme.stylesOnce = sync.Once{}
+		theme.stylesMu.Unlock()
 	}
 }
 
