@@ -149,10 +149,16 @@ func (m *Manager) ListInstances() ([]Instance, error) {
 
 	var instances []Instance
 	err := m.withLock(func(ctx *SharedContext) error {
-		// Clean up stale instances
+		// Clean up stale instances and dead processes
 		now := time.Now()
 		for id, inst := range ctx.Instances {
+			// Remove if stale (no activity for staleTimeout)
 			if now.Sub(inst.LastActivity) > staleTimeout {
+				delete(ctx.Instances, id)
+				continue
+			}
+			// Remove if process is no longer running
+			if inst.PID > 0 && !isProcessRunning(inst.PID) {
 				delete(ctx.Instances, id)
 				continue
 			}
@@ -163,6 +169,10 @@ func (m *Manager) ListInstances() ([]Instance, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Sort by ID for consistent ordering
+	sortInstancesByID(instances)
+
 	return instances, nil
 }
 
@@ -291,5 +301,27 @@ func releaseLock(f *os.File) {
 		name := f.Name()
 		f.Close()
 		os.Remove(name)
+	}
+}
+
+// isProcessRunning checks if a process with the given PID is still running.
+func isProcessRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	// On Unix, FindProcess always succeeds. Send signal 0 to check if process exists.
+	err = process.Signal(os.Signal(nil))
+	return err == nil
+}
+
+// sortInstancesByID sorts instances by their ID for consistent ordering.
+func sortInstancesByID(instances []Instance) {
+	for i := 0; i < len(instances)-1; i++ {
+		for j := i + 1; j < len(instances); j++ {
+			if instances[i].ID > instances[j].ID {
+				instances[i], instances[j] = instances[j], instances[i]
+			}
+		}
 	}
 }
