@@ -1,6 +1,9 @@
 package themes
 
 import (
+	"image/color"
+	"math"
+
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/lucasb-eyer/go-colorful"
@@ -8,43 +11,28 @@ import (
 
 // Chroma theme - RGB gaming aesthetic with vibrant rainbow colors.
 // Colors are generated using HSV to create a full spectrum effect.
+// This theme supports animation - colors cycle through the rainbow over time.
 var (
-	// Generate rainbow colors at different hue positions (0-360)
-	chromaRed     = hsvColor(0, 1.0, 1.0)    // Red
-	chromaOrange  = hsvColor(30, 1.0, 1.0)   // Orange
-	chromaYellow  = hsvColor(60, 1.0, 1.0)   // Yellow
-	chromaLime    = hsvColor(90, 1.0, 1.0)   // Lime
-	chromaGreen   = hsvColor(120, 1.0, 1.0)  // Green
-	chromaCyan    = hsvColor(180, 1.0, 1.0)  // Cyan
-	chromaBlue    = hsvColor(210, 1.0, 1.0)  // Blue
-	chromaIndigo  = hsvColor(240, 1.0, 1.0)  // Indigo
-	chromaViolet  = hsvColor(270, 1.0, 1.0)  // Violet
-	chromaMagenta = hsvColor(300, 1.0, 1.0)  // Magenta
-	chromaPink    = hsvColor(330, 1.0, 1.0)  // Pink
-
-	// Muted rainbow variants (lower saturation/value)
-	chromaRedMuted    = hsvColor(0, 0.7, 0.7)
-	chromaGreenMuted  = hsvColor(120, 0.7, 0.7)
-	chromaBlueMuted   = hsvColor(210, 0.7, 0.7)
-	chromaYellowMuted = hsvColor(60, 0.8, 0.9)
-	chromaCyanMuted   = hsvColor(180, 0.7, 0.8)
+	// Static rainbow colors for style initialization (these are used for lipgloss styles)
+	chromaRed     = hsvColor(0, 1.0, 1.0)   // Red
+	chromaYellow  = hsvColor(60, 1.0, 1.0)  // Yellow
+	chromaGreen   = hsvColor(120, 1.0, 1.0) // Green
+	chromaCyan    = hsvColor(180, 1.0, 1.0) // Cyan
+	chromaMagenta = hsvColor(300, 1.0, 1.0) // Magenta
 
 	// Dark backgrounds with subtle color tints
-	chromaBgBase        = hsvColor(270, 0.3, 0.08)  // Very dark purple-tinted
-	chromaBgBaseLighter = hsvColor(270, 0.25, 0.10) // Slightly lighter
-	chromaBgSubtle      = hsvColor(270, 0.2, 0.12)  // Subtle overlay
-	chromaBgOverlay     = hsvColor(270, 0.15, 0.18) // Overlay
+	chromaBgBase    = hsvColor(270, 0.3, 0.08)  // Very dark purple-tinted
+	chromaBgOverlay = hsvColor(270, 0.15, 0.18) // Overlay (static)
 
-	// Foreground colors - bright and vibrant
-	chromaFgBase      = hsvColor(180, 0.1, 0.95)  // Near-white with cyan tint
-	chromaFgMuted     = hsvColor(270, 0.2, 0.6)   // Muted purple
-	chromaFgHalfMuted = hsvColor(210, 0.15, 0.75) // Light blue-gray
-	chromaFgSubtle    = hsvColor(270, 0.25, 0.45) // Subtle purple
+	// Foreground colors - bright and vibrant (static for readability)
+	chromaFgBase      = hsvColor(180, 0.1, 0.95)   // Near-white with cyan tint
+	chromaFgMuted     = hsvColor(270, 0.2, 0.6)    // Muted purple
+	chromaFgHalfMuted = hsvColor(210, 0.15, 0.75)  // Light blue-gray
+	chromaFgSubtle    = hsvColor(270, 0.25, 0.45)  // Subtle purple
 	chromaFgSelected  = styles.ParseHex("#ffffff") // Pure white
 
-	// Borders with color cycling effect
-	chromaBorder      = hsvColor(270, 0.4, 0.25) // Purple border
-	chromaBorderFocus = chromaCyan               // Bright cyan focus
+	// Border (static)
+	chromaBorder = hsvColor(270, 0.4, 0.25) // Purple border
 )
 
 // hsvColor creates a color from HSV values.
@@ -53,25 +41,65 @@ func hsvColor(h, s, v float64) colorful.Color {
 	return colorful.Hsv(h, s, v)
 }
 
+// chromaColorFunc generates animated rainbow colors based on hue offset.
+// Returns colors in this order: Primary, Secondary, Tertiary, Accent, BorderFocus,
+// Success, Error, Warning, Info, BgBase, BgBaseLighter, BgSubtle
+func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
+	// Helper to create color at offset hue
+	atHue := func(h float64) color.Color {
+		return hsvColor(math.Mod(h+hueOffset, 360), 1.0, 1.0)
+	}
+	atHueMuted := func(h float64) color.Color {
+		return hsvColor(math.Mod(h+hueOffset, 360), 0.7, 0.7)
+	}
+	atHueBg := func(h, s, v float64) color.Color {
+		return hsvColor(math.Mod(h+hueOffset, 360), s, v)
+	}
+
+	return []color.Color{
+		atHue(180),            // Primary (cyan base)
+		atHue(270),            // Secondary (violet base)
+		atHue(210),            // Tertiary (blue base)
+		atHue(300),            // Accent (magenta base)
+		atHue(180),            // BorderFocus (cyan base)
+		atHue(120),            // Success (green base)
+		atHueMuted(0),         // Error (red base, slightly muted so it's still visible)
+		atHue(60),             // Warning (yellow base)
+		atHue(210),            // Info (blue base)
+		atHueBg(270, 0.3, 0.08),  // BgBase
+		atHueBg(270, 0.25, 0.10), // BgBaseLighter
+		atHueBg(270, 0.2, 0.12),  // BgSubtle
+	}
+}
+
 // NewChromaTheme creates an RGB gaming aesthetic theme with rainbow colors.
+// This theme supports animation - colors cycle through the rainbow over time.
 func NewChromaTheme() *styles.Theme {
+	// Get initial colors at hue offset 0
+	initialColors := chromaColorFunc(0, 0)
+
 	t := &styles.Theme{
 		Name:   "chroma",
 		IsDark: true,
 
-		// Use different rainbow colors for each role
-		Primary:   chromaCyan,    // Cyan for primary
-		Secondary: chromaViolet,  // Violet for secondary
-		Tertiary:  chromaBlue,    // Blue for tertiary
-		Accent:    chromaMagenta, // Magenta for accent
+		// Animation settings
+		Animated:       true,
+		AnimationSpeed: 30, // 30 degrees per second = full cycle in 12 seconds
+		ColorFunc:      chromaColorFunc,
 
-		// Backgrounds
-		BgBase:        chromaBgBase,
-		BgBaseLighter: chromaBgBaseLighter,
-		BgSubtle:      chromaBgSubtle,
+		// Use different rainbow colors for each role (initial values)
+		Primary:   initialColors[0],
+		Secondary: initialColors[1],
+		Tertiary:  initialColors[2],
+		Accent:    initialColors[3],
+
+		// Backgrounds (initial values, will animate)
+		BgBase:        initialColors[9],
+		BgBaseLighter: initialColors[10],
+		BgSubtle:      initialColors[11],
 		BgOverlay:     chromaBgOverlay,
 
-		// Foregrounds
+		// Foregrounds (static for readability)
 		FgBase:      chromaFgBase,
 		FgMuted:     chromaFgMuted,
 		FgHalfMuted: chromaFgHalfMuted,
@@ -80,32 +108,32 @@ func NewChromaTheme() *styles.Theme {
 
 		// Borders
 		Border:      chromaBorder,
-		BorderFocus: chromaBorderFocus,
+		BorderFocus: initialColors[4],
 
-		// Status colors - each a different rainbow color
-		Success: chromaGreen,  // Green for success
-		Error:   chromaRed,    // Red for error
-		Warning: chromaYellow, // Yellow for warning
-		Info:    chromaBlue,   // Blue for info
+		// Status colors - each a different rainbow color (initial values)
+		Success: initialColors[5],
+		Error:   initialColors[6],
+		Warning: initialColors[7],
+		Info:    initialColors[8],
 
-		// Colors - full rainbow spectrum
+		// Colors - full rainbow spectrum (static fallbacks)
 		White: chromaFgBase,
 
-		BlueLight: chromaCyan,
-		BlueDark:  chromaIndigo,
-		Blue:      chromaBlue,
+		BlueLight: hsvColor(180, 1.0, 1.0), // Cyan
+		BlueDark:  hsvColor(240, 1.0, 1.0), // Indigo
+		Blue:      hsvColor(210, 1.0, 1.0), // Blue
 
-		Yellow: chromaYellow,
-		Citron: chromaLime,
+		Yellow: hsvColor(60, 1.0, 1.0),  // Yellow
+		Citron: hsvColor(90, 1.0, 1.0),  // Lime
 
-		Green:      chromaGreen,
-		GreenDark:  chromaGreenMuted,
-		GreenLight: chromaLime,
+		Green:      hsvColor(120, 1.0, 1.0), // Green
+		GreenDark:  hsvColor(120, 0.7, 0.7), // Muted green
+		GreenLight: hsvColor(90, 1.0, 1.0),  // Lime
 
-		Red:      chromaRed,
-		RedDark:  chromaRedMuted,
-		RedLight: chromaPink,
-		Cherry:   chromaMagenta,
+		Red:      hsvColor(0, 1.0, 1.0),   // Red
+		RedDark:  hsvColor(0, 0.7, 0.7),   // Muted red
+		RedLight: hsvColor(330, 1.0, 1.0), // Pink
+		Cherry:   hsvColor(300, 1.0, 1.0), // Magenta
 	}
 
 	// Text selection with rainbow effect

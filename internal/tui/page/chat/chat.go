@@ -824,10 +824,8 @@ func (p *chatPage) handleThemeSelected(themeName string) tea.Cmd {
 			}
 		}
 
-		return util.InfoMsg{
-			Type: util.InfoTypeInfo,
-			Msg:  "Theme set to " + themeName,
-		}
+		// Return ThemeChangedMsg so TUI can start animation if needed
+		return styles.ThemeChangedMsg{ThemeName: themeName}
 	}
 }
 

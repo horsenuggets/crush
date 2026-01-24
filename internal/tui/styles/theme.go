@@ -3,8 +3,10 @@ package styles
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"strings"
 	"sync"
+	"time"
 
 	"charm.land/bubbles/v2/filepicker"
 	"charm.land/bubbles/v2/help"
@@ -28,6 +30,11 @@ const (
 type Theme struct {
 	Name   string
 	IsDark bool
+
+	// Animation support for themes like chroma
+	Animated       bool                                      // Whether this theme has animated colors
+	AnimationSpeed float64                                   // Hue degrees per second (e.g., 30 = full cycle in 12 seconds)
+	ColorFunc      func(baseHue, hueOffset float64) []color.Color // Function to generate colors based on hue offset
 
 	Primary   color.Color
 	Secondary color.Color
@@ -101,6 +108,10 @@ type Theme struct {
 	styles     *Styles
 	stylesOnce sync.Once
 	stylesMu   sync.RWMutex // Protects styles and stylesOnce for thread-safe reloading
+
+	// Animation state
+	animStartTime time.Time
+	animHueOffset float64
 }
 
 type Styles struct {
@@ -157,6 +168,70 @@ func (t *Theme) S() *Styles {
 
 	t.styles = t.buildStyles()
 	return t.styles
+}
+
+// IsAnimated returns true if this theme has animated colors.
+func (t *Theme) IsAnimated() bool {
+	return t.Animated && t.ColorFunc != nil
+}
+
+// StartAnimation initializes the animation start time.
+func (t *Theme) StartAnimation() {
+	t.stylesMu.Lock()
+	defer t.stylesMu.Unlock()
+	t.animStartTime = time.Now()
+	t.animHueOffset = 0
+}
+
+// AdvanceAnimation updates the theme colors based on elapsed time.
+// Returns true if colors were updated and styles need rebuilding.
+func (t *Theme) AdvanceAnimation() bool {
+	if !t.IsAnimated() {
+		return false
+	}
+
+	t.stylesMu.Lock()
+	defer t.stylesMu.Unlock()
+
+	// Calculate new hue offset based on elapsed time
+	elapsed := time.Since(t.animStartTime).Seconds()
+	newHueOffset := math.Mod(elapsed*t.AnimationSpeed, 360)
+
+	// Only update if hue changed significantly (at least 1 degree)
+	if math.Abs(newHueOffset-t.animHueOffset) < 1 {
+		return false
+	}
+
+	t.animHueOffset = newHueOffset
+
+	// Call the color function to update theme colors
+	colors := t.ColorFunc(0, t.animHueOffset)
+	if len(colors) >= 12 {
+		t.Primary = colors[0]
+		t.Secondary = colors[1]
+		t.Tertiary = colors[2]
+		t.Accent = colors[3]
+		t.BorderFocus = colors[4]
+		t.Success = colors[5]
+		t.Error = colors[6]
+		t.Warning = colors[7]
+		t.Info = colors[8]
+		t.BgBase = colors[9]
+		t.BgBaseLighter = colors[10]
+		t.BgSubtle = colors[11]
+	}
+
+	// Clear cached styles so they get rebuilt with new colors
+	t.styles = nil
+
+	return true
+}
+
+// GetHueOffset returns the current animation hue offset.
+func (t *Theme) GetHueOffset() float64 {
+	t.stylesMu.RLock()
+	defer t.stylesMu.RUnlock()
+	return t.animHueOffset
 }
 
 func (t *Theme) buildStyles() *Styles {
@@ -626,6 +701,14 @@ func (m *Manager) SetTheme(name string) error {
 	return fmt.Errorf("theme %s not found", name)
 }
 
+// SetThemeWithNotify sets the theme and returns a ThemeChangedMsg for the TUI to handle.
+func (m *Manager) SetThemeWithNotify(name string) (tea.Msg, error) {
+	if err := m.SetTheme(name); err != nil {
+		return nil, err
+	}
+	return ThemeChangedMsg{ThemeName: name}, nil
+}
+
 func (m *Manager) List() []string {
 	names := make([]string, 0, len(m.themes))
 	for name := range m.themes {
@@ -826,4 +909,45 @@ func blendColors(size int, stops ...color.Color) []color.Color {
 	}
 
 	return blended
+}
+
+// Animation support for themes
+
+// ThemeChangedMsg is sent when the theme is changed.
+// The TUI should handle this to start/stop animation as needed.
+type ThemeChangedMsg struct {
+	ThemeName string
+}
+
+// AnimationTickMsg is sent when theme animation should advance.
+type AnimationTickMsg struct{}
+
+// AnimationTickInterval is the interval between animation ticks.
+const AnimationTickInterval = 100 * time.Millisecond
+
+// AnimationTickCmd returns a command that sends AnimationTickMsg after the tick interval.
+func AnimationTickCmd() tea.Cmd {
+	return tea.Tick(AnimationTickInterval, func(time.Time) tea.Msg {
+		return AnimationTickMsg{}
+	})
+}
+
+// StartAnimationIfNeeded starts animation for the current theme if it's animated.
+// Returns a command to start the animation tick loop.
+func (m *Manager) StartAnimationIfNeeded() tea.Cmd {
+	if m.current != nil && m.current.IsAnimated() {
+		m.current.StartAnimation()
+		return AnimationTickCmd()
+	}
+	return nil
+}
+
+// HandleAnimationTick advances the current theme's animation and returns
+// a command to continue the animation tick loop if needed.
+func (m *Manager) HandleAnimationTick() tea.Cmd {
+	if m.current != nil && m.current.IsAnimated() {
+		m.current.AdvanceAnimation()
+		return AnimationTickCmd()
+	}
+	return nil
 }

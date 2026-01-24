@@ -114,6 +114,11 @@ func (a appModel) Init() tea.Cmd {
 		cmds = append(cmds, tea.RequestTerminalVersion)
 	}
 
+	// Start theme animation if the current theme is animated
+	if animCmd := styles.DefaultManager().StartAnimationIfNeeded(); animCmd != nil {
+		cmds = append(cmds, animCmd)
+	}
+
 	return tea.Batch(cmds...)
 }
 
@@ -145,6 +150,19 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return a, nil
+
+	case styles.AnimationTickMsg:
+		// Handle theme animation tick
+		return a, styles.DefaultManager().HandleAnimationTick()
+
+	case styles.ThemeChangedMsg:
+		// Show the theme change notification and start animation if needed
+		var cmds []tea.Cmd
+		cmds = append(cmds, util.ReportInfo("Theme set to "+msg.ThemeName))
+		if animCmd := styles.DefaultManager().StartAnimationIfNeeded(); animCmd != nil {
+			cmds = append(cmds, animCmd)
+		}
+		return a, tea.Batch(cmds...)
 	case tea.KeyboardEnhancementsMsg:
 		// A non-zero value means we have key disambiguation support.
 		if msg.Flags > 0 {
