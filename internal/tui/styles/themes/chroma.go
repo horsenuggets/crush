@@ -62,11 +62,8 @@ func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 	accent := hsvColor(h, 1.0, 1.0)
 	bgDark := hsvColor(h, 0.6, 0.10)
 
-	// Animated text colors - all text shifts with subtle saturation
-	t.FgBase = hsvColor(h, 0.25, 0.95)      // Main text - subtle tint
-	t.FgMuted = hsvColor(h, 0.2, 0.7)       // Muted text - subtle tint
-	t.FgHalfMuted = hsvColor(h, 0.22, 0.82) // Half-muted text
-	// FgSubtle stays neutral gray for less important elements
+	// Text colors stay neutral gray (no saturation) - they get cached by components
+	// Only accents, borders, and backgrounds animate
 
 	// Text selection uses neutral selection color (not animated for caching)
 	t.TextSelection = lipgloss.NewStyle().Foreground(chromaFgSelected).Background(chromaSelection)
@@ -118,11 +115,11 @@ func NewChromaTheme() *styles.Theme {
 		BgSubtle:      initialColors[11],
 		BgOverlay:     chromaBgOverlay,
 
-		// Animated foreground colors with subtle saturation
-		FgBase:      hsvColor(0, 0.25, 0.95),  // Animated via StyleBuilder
-		FgMuted:     hsvColor(0, 0.2, 0.7),    // Animated via StyleBuilder
-		FgHalfMuted: hsvColor(0, 0.22, 0.82),  // Animated via StyleBuilder
-		FgSubtle:    chromaFgSubtle,           // Stays neutral gray
+		// Static neutral foregrounds (grayscale) - text gets cached by components
+		FgBase:      chromaFgBase,      // Near white
+		FgMuted:     chromaFgMuted,     // Medium gray
+		FgHalfMuted: chromaFgHalfMuted, // Light gray
+		FgSubtle:    chromaFgSubtle,    // Dark gray
 		FgSelected:  chromaFgSelected,
 
 		// Borders

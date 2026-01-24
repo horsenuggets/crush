@@ -233,8 +233,9 @@ func (t *Theme) AdvanceAnimation() bool {
 		t.StyleBuilder(t, t.animHueOffset)
 	}
 
-	// Clear cached styles so they get rebuilt with new colors
-	t.styles = nil
+	// Rebuild cached styles immediately while holding the lock
+	// This ensures all components see consistent styles during the render cycle
+	t.styles = t.buildStyles()
 
 	return true
 }
