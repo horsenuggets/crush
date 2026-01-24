@@ -15,9 +15,9 @@ import (
 const whisperAPIURL = "https://api.openai.com/v1/audio/transcriptions"
 
 // BasePrompt contains common technical vocabulary for better transcription accuracy.
-const BasePrompt = "Claude, Claude Code, Anthropic, Bubbletea, Lipgloss, Charm, " +
+const BasePrompt = "Claude, Claude Code, Anthropic, " +
 	"GitHub, git, commit, push, pull request, PR, repository, codebase, " +
-	"TypeScript, JavaScript, Go, Golang, Rust, Python, API, CLI, terminal"
+	"API, CLI, terminal"
 
 // TranscriptionResponse represents the response from the Whisper API.
 type TranscriptionResponse struct {
