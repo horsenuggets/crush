@@ -476,10 +476,25 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (*fantasy
 		var providerErr *fantasy.ProviderError
 		const defaultTitle = "Provider Error"
 		linkStyle := lipgloss.NewStyle().Foreground(charmtone.Guac).Underline(true)
+
+		// Check for Ollama/local model errors first, before other error types
+		// This catches connection refused errors to local servers
+		slog.Debug("Checking error for Ollama wrapping", "error", err.Error(), "errorType", fmt.Sprintf("%T", err))
+		wrappedErr := ollama.WrapError(err, "")
+		var ollamaErr *ollama.OllamaError
+		isOllamaErr := errors.As(wrappedErr, &ollamaErr)
+		slog.Debug("Ollama error check result", "isOllamaErr", isOllamaErr, "wrappedErrType", fmt.Sprintf("%T", wrappedErr))
+
 		if isCancelErr {
 			currentAssistant.AddFinish(message.FinishReasonCanceled, "User canceled request", "")
 		} else if isPermissionErr {
 			currentAssistant.AddFinish(message.FinishReasonPermissionDenied, "User denied permission", "")
+		} else if isOllamaErr {
+			msg := ollamaErr.Message
+			if ollamaErr.Action != "" {
+				msg += "\n\n" + ollamaErr.Action
+			}
+			currentAssistant.AddFinish(message.FinishReasonError, ollamaErr.Title, msg)
 		} else if errors.Is(err, hyper.ErrNoCredits) {
 			url := hyper.BaseURL()
 			link := linkStyle.Hyperlink(url, "id=hyper").Render(url)
@@ -499,24 +514,17 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (*fantasy
 		} else if errors.As(err, &fantasyErr) {
 			currentAssistant.AddFinish(message.FinishReasonError, cmp.Or(stringext.Capitalize(fantasyErr.Title), defaultTitle), fantasyErr.Message)
 		} else {
-			// Check for Ollama/local model errors and wrap them with user-friendly messages
-			wrappedErr := ollama.WrapError(err, largeModel.Model.Provider())
-			var ollamaErr *ollama.OllamaError
-			if errors.As(wrappedErr, &ollamaErr) {
-				msg := ollamaErr.Message
-				if ollamaErr.Action != "" {
-					msg += "\n\n" + ollamaErr.Action
-				}
-				currentAssistant.AddFinish(message.FinishReasonError, ollamaErr.Title, msg)
-			} else {
-				currentAssistant.AddFinish(message.FinishReasonError, defaultTitle, err.Error())
-			}
+			currentAssistant.AddFinish(message.FinishReasonError, defaultTitle, err.Error())
 		}
 		// Note: we use the parent context here because the genCtx has been
 		// cancelled.
 		updateErr := a.messages.Update(ctx, *currentAssistant)
 		if updateErr != nil {
 			return nil, updateErr
+		}
+		// Return wrapped error for Ollama errors so chat.go can detect specific error types
+		if isOllamaErr {
+			return nil, wrappedErr
 		}
 		return nil, err
 	}
