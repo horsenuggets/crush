@@ -9,23 +9,44 @@
       "api_key": "ollama",
       "models": [
         {
-          "id": "llama3.2",
-          "name": "Llama 3.2 (Local)",
-          "context_window": 128000,
-          "default_max_tokens": 8192,
-          "supports_images": false
-        },
-        {
-          "id": "deepseek-coder-v2",
-          "name": "DeepSeek Coder V2 (Local)",
-          "context_window": 128000,
-          "default_max_tokens": 8192,
-          "supports_images": false
-        },
-        {
-          "id": "qwen2.5-coder",
-          "name": "Qwen 2.5 Coder (Local)",
+          "id": "qwen2.5-coder:32b",
+          "name": "Qwen 2.5 Coder 32B (Local)",
           "context_window": 32000,
+          "default_max_tokens": 8192,
+          "supports_images": false
+        },
+        {
+          "id": "qwen2.5:32b",
+          "name": "Qwen 2.5 32B (Local)",
+          "context_window": 32000,
+          "default_max_tokens": 8192,
+          "supports_images": false
+        },
+        {
+          "id": "qwen2.5-coder:14b",
+          "name": "Qwen 2.5 Coder 14B (Local)",
+          "context_window": 32000,
+          "default_max_tokens": 8192,
+          "supports_images": false
+        },
+        {
+          "id": "llama3.1:8b",
+          "name": "Llama 3.1 8B (Local)",
+          "context_window": 128000,
+          "default_max_tokens": 8192,
+          "supports_images": false
+        },
+        {
+          "id": "qwen2.5-coder:7b",
+          "name": "Qwen 2.5 Coder 7B (Local)",
+          "context_window": 32000,
+          "default_max_tokens": 8192,
+          "supports_images": false
+        },
+        {
+          "id": "llama3.2",
+          "name": "Llama 3.2 3B (Local)",
+          "context_window": 128000,
           "default_max_tokens": 8192,
           "supports_images": false
         }
