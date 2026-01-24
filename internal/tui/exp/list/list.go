@@ -503,9 +503,21 @@ func (l *list[T]) View() string {
 		return l.cachedView
 	}
 
-	// Clear item render cache for animated themes
+	// For animated themes, re-render all items to pick up animated colors
 	if t.IsAnimated() {
 		l.renderedItems = make(map[string]renderedItem)
+		l.rendered = ""
+		l.renderedHeight = 0
+		rendered, finishIndex := l.renderIterator(0, true, "")
+		l.setRendered(rendered)
+		if l.direction == DirectionBackward {
+			l.recalculateItemPositions()
+		}
+		rendered, _ = l.renderIterator(finishIndex, false, l.rendered)
+		l.setRendered(rendered)
+		if l.direction == DirectionBackward {
+			l.recalculateItemPositions()
+		}
 	}
 
 	start, end := l.viewPosition()
