@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"charm.land/bubbles/v2/filepicker"
@@ -121,6 +122,25 @@ type Theme struct {
 	// Animation state
 	animStartTime time.Time
 	animHueOffset float64
+	animColors    atomic.Pointer[AnimatedColors] // Atomic snapshot for lock-free reads
+}
+
+// AnimatedColors holds a snapshot of animated color values.
+// This struct is swapped atomically to ensure components see consistent colors.
+type AnimatedColors struct {
+	Primary       color.Color
+	Secondary     color.Color
+	Tertiary      color.Color
+	Accent        color.Color
+	BorderFocus   color.Color
+	Success       color.Color
+	Error         color.Color
+	Warning       color.Color
+	Info          color.Color
+	BgBase        color.Color
+	BgBaseLighter color.Color
+	BgSubtle      color.Color
+	HueOffset     float64
 }
 
 type Styles struct {
@@ -190,6 +210,29 @@ func (t *Theme) StartAnimation() {
 	defer t.stylesMu.Unlock()
 	t.animStartTime = time.Now()
 	t.animHueOffset = 0
+
+	// Initialize the atomic color snapshot
+	if t.ColorFunc != nil {
+		colors := t.ColorFunc(0, 0)
+		if len(colors) >= 12 {
+			snapshot := &AnimatedColors{
+				Primary:       colors[0],
+				Secondary:     colors[1],
+				Tertiary:      colors[2],
+				Accent:        colors[3],
+				BorderFocus:   colors[4],
+				Success:       colors[5],
+				Error:         colors[6],
+				Warning:       colors[7],
+				Info:          colors[8],
+				BgBase:        colors[9],
+				BgBaseLighter: colors[10],
+				BgSubtle:      colors[11],
+				HueOffset:     0,
+			}
+			t.animColors.Store(snapshot)
+		}
+	}
 }
 
 // AdvanceAnimation updates the theme colors based on elapsed time.
@@ -199,15 +242,13 @@ func (t *Theme) AdvanceAnimation() bool {
 		return false
 	}
 
-	t.stylesMu.Lock()
-	defer t.stylesMu.Unlock()
-
 	// Calculate new hue offset based on elapsed time
 	elapsed := time.Since(t.animStartTime).Seconds()
 	newHueOffset := math.Mod(elapsed*t.AnimationSpeed, 360)
 
 	// Calculate hue difference accounting for circular wrap-around (0-360)
-	hueDiff := math.Abs(newHueOffset - t.animHueOffset)
+	oldOffset := t.animHueOffset
+	hueDiff := math.Abs(newHueOffset - oldOffset)
 	if hueDiff > 180 {
 		hueDiff = 360 - hueDiff // Handle wrap-around (e.g., 359 to 1 is 2 degrees, not 358)
 	}
@@ -219,9 +260,30 @@ func (t *Theme) AdvanceAnimation() bool {
 
 	t.animHueOffset = newHueOffset
 
-	// Call the color function to update theme colors
+	// Call the color function to generate new colors
 	colors := t.ColorFunc(0, t.animHueOffset)
+
+	// Create a new atomic snapshot of animated colors
+	// This is swapped atomically so readers see a consistent set of colors
 	if len(colors) >= 12 {
+		snapshot := &AnimatedColors{
+			Primary:       colors[0],
+			Secondary:     colors[1],
+			Tertiary:      colors[2],
+			Accent:        colors[3],
+			BorderFocus:   colors[4],
+			Success:       colors[5],
+			Error:         colors[6],
+			Warning:       colors[7],
+			Info:          colors[8],
+			BgBase:        colors[9],
+			BgBaseLighter: colors[10],
+			BgSubtle:      colors[11],
+			HueOffset:     t.animHueOffset,
+		}
+		t.animColors.Store(snapshot)
+
+		// Also update the theme fields for backward compatibility
 		t.Primary = colors[0]
 		t.Secondary = colors[1]
 		t.Tertiary = colors[2]
@@ -241,17 +303,29 @@ func (t *Theme) AdvanceAnimation() bool {
 		t.StyleBuilder(t, t.animHueOffset)
 	}
 
-	// Rebuild cached styles immediately while holding the lock
-	// This ensures all components see consistent styles during the render cycle
+	// Rebuild cached styles
+	t.stylesMu.Lock()
 	t.styles = t.buildStyles()
+	t.stylesMu.Unlock()
 
 	return true
 }
 
+// GetAnimatedColors returns the current animated color snapshot.
+// This is safe to call concurrently and returns a consistent set of colors.
+func (t *Theme) GetAnimatedColors() *AnimatedColors {
+	if !t.IsAnimated() {
+		return nil
+	}
+	return t.animColors.Load()
+}
+
 // GetHueOffset returns the current animation hue offset.
+// Uses the atomic snapshot for lock-free access.
 func (t *Theme) GetHueOffset() float64 {
-	t.stylesMu.RLock()
-	defer t.stylesMu.RUnlock()
+	if snapshot := t.animColors.Load(); snapshot != nil {
+		return snapshot.HueOffset
+	}
 	return t.animHueOffset
 }
 
@@ -1024,9 +1098,9 @@ type ThemeChangedMsg struct {
 // AnimationTickMsg is sent when theme animation should advance.
 type AnimationTickMsg struct{}
 
-// AnimationTickInterval is the interval between animation ticks (10hz = 100ms).
-// Kept at 10hz to reduce chance of race conditions causing visual flicker.
-const AnimationTickInterval = 100 * time.Millisecond
+// AnimationTickInterval is the interval between animation ticks (20hz = 50ms).
+// Uses atomic color snapshots for lock-free reads to prevent flicker.
+const AnimationTickInterval = 50 * time.Millisecond
 
 // AnimationTickCmd returns a command that sends AnimationTickMsg after the tick interval.
 func AnimationTickCmd() tea.Cmd {
