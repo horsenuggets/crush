@@ -11,14 +11,28 @@ import (
 //go:embed templates/coder.md.tpl
 var coderPromptTmpl []byte
 
+//go:embed templates/coder-lite.md.tpl
+var coderLitePromptTmpl []byte
+
 //go:embed templates/task.md.tpl
 var taskPromptTmpl []byte
 
 //go:embed templates/initialize.md.tpl
 var initializePromptTmpl []byte
 
+// localProviders are providers that run locally and may benefit from a lighter prompt.
+var localProviders = map[string]bool{
+	"ollama": true,
+}
+
 func coderPrompt(opts ...prompt.Option) (*prompt.Prompt, error) {
-	systemPrompt, err := prompt.NewPrompt("coder", string(coderPromptTmpl), opts...)
+	systemPrompt, err := prompt.NewPromptWithVariant(
+		"coder",
+		string(coderPromptTmpl),
+		string(coderLitePromptTmpl),
+		localProviders,
+		opts...,
+	)
 	if err != nil {
 		return nil, err
 	}

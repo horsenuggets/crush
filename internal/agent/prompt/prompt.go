@@ -19,11 +19,13 @@ import (
 
 // Prompt represents a template-based prompt generator.
 type Prompt struct {
-	name       string
-	template   string
-	now        func() time.Time
-	platform   string
-	workingDir string
+	name           string
+	template       string
+	liteTemplate   string
+	liteProviders  map[string]bool
+	now            func() time.Time
+	platform       string
+	workingDir     string
 }
 
 type PromptDat struct {
@@ -76,8 +78,29 @@ func NewPrompt(name, promptTemplate string, opts ...Option) (*Prompt, error) {
 	return p, nil
 }
 
+// NewPromptWithVariant creates a prompt with a lite variant for specified providers.
+func NewPromptWithVariant(name, promptTemplate, liteTemplate string, liteProviders map[string]bool, opts ...Option) (*Prompt, error) {
+	p := &Prompt{
+		name:          name,
+		template:      promptTemplate,
+		liteTemplate:  liteTemplate,
+		liteProviders: liteProviders,
+		now:           time.Now,
+	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p, nil
+}
+
 func (p *Prompt) Build(ctx context.Context, provider, model string, cfg config.Config) (string, error) {
-	t, err := template.New(p.name).Parse(p.template)
+	// Select template based on provider
+	tmplStr := p.template
+	if p.liteTemplate != "" && p.liteProviders != nil && p.liteProviders[provider] {
+		tmplStr = p.liteTemplate
+	}
+
+	t, err := template.New(p.name).Parse(tmplStr)
 	if err != nil {
 		return "", fmt.Errorf("parsing template: %w", err)
 	}
