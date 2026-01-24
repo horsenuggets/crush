@@ -42,7 +42,7 @@ func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
 
 	return []color.Color{
 		chromaSelection,            // 0: Primary - neutral white selection (not animated)
-		hsvColor(h, 0.6, 0.75),     // 1: Secondary - animated, darker for black text contrast
+		hsvColor(h, 0.7, 0.95),     // 1: Secondary - animated bright color
 		chromaFgBase,               // 2: Tertiary - white (used for ">" prompt, cached)
 		hsvColor(h, 1.0, 1.0),      // 3: Accent - animated rainbow
 		hsvColor(h, 1.0, 1.0),      // 4: BorderFocus - animated rainbow

@@ -153,32 +153,32 @@ type ButtonOpts struct {
 func SelectableButton(opts ButtonOpts) string {
 	t := styles.CurrentTheme()
 
-	// Base style for the button
-	buttonStyle := t.S().Text
-
-	// Apply selection styling
+	// Build style from scratch for selected buttons to ensure correct colors
+	var buttonStyle lipgloss.Style
 	if opts.Selected {
-		buttonStyle = buttonStyle.Foreground(t.FgSelected).Background(t.Secondary)
+		// Use explicit black foreground on bright background for contrast
+		buttonStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#000000")).
+			Background(t.Secondary)
 	} else {
-		buttonStyle = buttonStyle.Background(t.BgSubtle)
+		buttonStyle = t.S().Text.Background(t.BgSubtle)
 	}
 
 	// Create the button text with underlined character
 	text := opts.Text
+	paddedStyle := buttonStyle.Padding(0, 2)
+
 	if opts.UnderlineIndex >= 0 && opts.UnderlineIndex < len(text) {
 		before := text[:opts.UnderlineIndex]
 		underlined := text[opts.UnderlineIndex : opts.UnderlineIndex+1]
 		after := text[opts.UnderlineIndex+1:]
 
-		message := buttonStyle.Render(before) +
-			buttonStyle.Underline(true).Render(underlined) +
-			buttonStyle.Render(after)
-
-		return buttonStyle.Padding(0, 2).Render(message)
+		// Build styled parts
+		return paddedStyle.Render(before + buttonStyle.Underline(true).Render(underlined) + after)
 	}
 
 	// Fallback if no underline index specified
-	return buttonStyle.Padding(0, 2).Render(text)
+	return paddedStyle.Render(text)
 }
 
 // SelectableButtons creates a horizontal row of selectable buttons
