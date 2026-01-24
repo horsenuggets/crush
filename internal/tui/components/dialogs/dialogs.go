@@ -17,6 +17,14 @@ type DialogModel interface {
 	ID() DialogID
 }
 
+// AutoCenteredDialog is an optional interface for dialogs that want automatic
+// centering based on their rendered content. Dialogs implementing this interface
+// will have their Position() method ignored in favor of auto-centering.
+// Use this for simple dialogs without text inputs that need cursor positioning.
+type AutoCenteredDialog interface {
+	AutoCentered()
+}
+
 // CloseCallback allows dialogs to perform cleanup when closed.
 type CloseCallback interface {
 	Close() tea.Cmd
@@ -154,7 +162,16 @@ func (d dialogCmp) GetLayers() []*lipgloss.Layer {
 	layers := []*lipgloss.Layer{}
 	for _, dialog := range d.Dialogs() {
 		dialogView := dialog.View()
-		row, col := dialog.Position()
+		var row, col int
+		if _, ok := dialog.(AutoCenteredDialog); ok {
+			// Auto-center based on actual rendered dimensions
+			viewWidth := lipgloss.Width(dialogView)
+			viewHeight := lipgloss.Height(dialogView)
+			row = d.height/2 - viewHeight/2
+			col = d.width/2 - viewWidth/2
+		} else {
+			row, col = dialog.Position()
+		}
 		layers = append(layers, lipgloss.NewLayer(dialogView).X(col).Y(row))
 	}
 	return layers
