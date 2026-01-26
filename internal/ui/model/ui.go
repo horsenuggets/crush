@@ -45,6 +45,7 @@ import (
 	timage "github.com/charmbracelet/crush/internal/ui/image"
 	"github.com/charmbracelet/crush/internal/ui/logo"
 	"github.com/charmbracelet/crush/internal/ui/styles"
+	tuistyles "github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/uiutil"
 	"github.com/charmbracelet/crush/internal/version"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -2279,13 +2280,39 @@ func (m *UI) normalPromptFunc(info textarea.PromptInfo) string {
 // yoloPromptFunc returns the yolo mode editor prompt style with warning icon
 // and colored dots.
 func (m *UI) yoloPromptFunc(info textarea.PromptInfo) string {
+	// For animated themes (like chroma), render fresh colors from the atomic snapshot
+	// to avoid flicker from stale cached styles
+	theme := tuistyles.CurrentTheme()
+	if theme.IsAnimated() {
+		colors := theme.GetAnimatedColors()
+		if colors == nil {
+			// Fallback to non-animated path if snapshot not ready
+			goto nonAnimated
+		}
+
+		accent := colors.Accent
+		bgBase := colors.BgBase
+
+		if info.LineNumber == 0 {
+			if info.Focused {
+				return lipgloss.NewStyle().Foreground(bgBase).Background(accent).Bold(true).Render(" ! ") + " "
+			}
+			return lipgloss.NewStyle().Foreground(theme.FgMuted).Background(theme.BgOverlay).Bold(true).Render(" ! ") + " "
+		}
+		if info.Focused {
+			return lipgloss.NewStyle().Foreground(accent).Render(":::") + " "
+		}
+		return lipgloss.NewStyle().Foreground(theme.FgSubtle).Render(":::") + " "
+	}
+
+nonAnimated:
+	// Non-animated themes use pre-built styles
 	t := m.com.Styles
 	if info.LineNumber == 0 {
 		if info.Focused {
 			return t.EditorPromptYoloIconFocused.Render()
-		} else {
-			return t.EditorPromptYoloIconBlurred.Render()
 		}
+		return t.EditorPromptYoloIconBlurred.Render()
 	}
 	if info.Focused {
 		return t.EditorPromptYoloDotsFocused.Render()

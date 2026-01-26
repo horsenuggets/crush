@@ -52,7 +52,8 @@ type Theme struct {
 	FgMuted     color.Color
 	FgHalfMuted color.Color
 	FgSubtle    color.Color
-	FgSelected  color.Color
+	FgSelected  color.Color // Text color on menu selection bars (Primary background)
+	FgButton    color.Color // Text color on buttons (Secondary background), defaults to FgSelected if nil
 	FgCursor    color.Color // Optional cursor color, defaults to Secondary if nil
 
 	Border      color.Color
@@ -121,9 +122,10 @@ type Theme struct {
 	stylesMu   sync.RWMutex // Protects styles and stylesOnce for thread-safe reloading
 
 	// Animation state
-	animStartTime time.Time
-	animHueOffset float64
-	animColors    atomic.Pointer[AnimatedColors] // Atomic snapshot for lock-free reads
+	animStartTime    time.Time
+	animHueOffset    float64
+	animLastUpdate   time.Time                       // Track last update time for rate limiting
+	animColors       atomic.Pointer[AnimatedColors]  // Atomic snapshot for lock-free reads
 }
 
 // AnimatedColors holds a snapshot of animated color values.
@@ -142,6 +144,32 @@ type AnimatedColors struct {
 	BgBaseLighter color.Color
 	BgSubtle      color.Color
 	HueOffset     float64
+}
+
+// Color8Bit wraps a color.Color to ensure RGBA() returns 8-bit scaled values.
+// This fixes compatibility with lipgloss which expects 8-bit (0-255) values
+// but colorful.Color returns 16-bit (0-65535) values.
+type Color8Bit struct {
+	c color.Color
+}
+
+// NewColor8Bit wraps a color to ensure proper 8-bit RGBA conversion.
+func NewColor8Bit(c color.Color) Color8Bit {
+	return Color8Bit{c: c}
+}
+
+// RGBA returns the color's RGBA values scaled to 8-bit range (0-255)
+// represented as 16-bit values (0-65535) as required by the color.Color interface.
+// This ensures lipgloss interprets the color correctly.
+func (c Color8Bit) RGBA() (r, g, b, a uint32) {
+	r, g, b, a = c.c.RGBA()
+	// Convert from 16-bit to 8-bit, then back to 16-bit format
+	// This ensures lipgloss sees values it can properly convert
+	r = (r >> 8) * 0x101
+	g = (g >> 8) * 0x101
+	b = (b >> 8) * 0x101
+	a = (a >> 8) * 0x101
+	return r, g, b, a
 }
 
 type Styles struct {
@@ -209,7 +237,9 @@ func (t *Theme) IsAnimated() bool {
 func (t *Theme) StartAnimation() {
 	t.stylesMu.Lock()
 	defer t.stylesMu.Unlock()
-	t.animStartTime = time.Now()
+	now := time.Now()
+	t.animStartTime = now
+	t.animLastUpdate = now
 	t.animHueOffset = 0
 
 	// Initialize the atomic color snapshot
@@ -217,18 +247,18 @@ func (t *Theme) StartAnimation() {
 		colors := t.ColorFunc(0, 0)
 		if len(colors) >= 12 {
 			snapshot := &AnimatedColors{
-				Primary:       colors[0],
-				Secondary:     colors[1],
-				Tertiary:      colors[2],
-				Accent:        colors[3],
-				BorderFocus:   colors[4],
-				Success:       colors[5],
-				Error:         colors[6],
-				Warning:       colors[7],
-				Info:          colors[8],
-				BgBase:        colors[9],
-				BgBaseLighter: colors[10],
-				BgSubtle:      colors[11],
+				Primary:       NewColor8Bit(colors[0]),
+				Secondary:     NewColor8Bit(colors[1]),
+				Tertiary:      NewColor8Bit(colors[2]),
+				Accent:        NewColor8Bit(colors[3]),
+				BorderFocus:   NewColor8Bit(colors[4]),
+				Success:       NewColor8Bit(colors[5]),
+				Error:         NewColor8Bit(colors[6]),
+				Warning:       NewColor8Bit(colors[7]),
+				Info:          NewColor8Bit(colors[8]),
+				BgBase:        NewColor8Bit(colors[9]),
+				BgBaseLighter: NewColor8Bit(colors[10]),
+				BgSubtle:      NewColor8Bit(colors[11]),
 				HueOffset:     0,
 			}
 			t.animColors.Store(snapshot)
@@ -243,60 +273,99 @@ func (t *Theme) AdvanceAnimation() bool {
 		return false
 	}
 
-	// Calculate new hue offset based on elapsed time
-	elapsed := time.Since(t.animStartTime).Seconds()
+	now := time.Now()
+
+	// Calculate time since last update for rate limiting
+	timeSinceLastUpdate := now.Sub(t.animLastUpdate).Seconds()
+	if timeSinceLastUpdate < 0 {
+		timeSinceLastUpdate = 0
+	}
+
+	// Calculate new hue offset based on elapsed time from start
+	elapsed := now.Sub(t.animStartTime).Seconds()
 	newHueOffset := math.Mod(elapsed*t.AnimationSpeed, 360)
+
+	// Sanity check: ensure hue is valid (not NaN, Inf, or negative)
+	if math.IsNaN(newHueOffset) || math.IsInf(newHueOffset, 0) || newHueOffset < 0 {
+		newHueOffset = t.animHueOffset // Keep current value if calculation fails
+	}
 
 	// Calculate hue difference accounting for circular wrap-around (0-360)
 	oldOffset := t.animHueOffset
-	hueDiff := math.Abs(newHueOffset - oldOffset)
+	hueDiff := newHueOffset - oldOffset
+
+	// Normalize to -180 to +180 range for proper wrap handling
 	if hueDiff > 180 {
-		hueDiff = 360 - hueDiff // Handle wrap-around (e.g., 359 to 1 is 2 degrees, not 358)
+		hueDiff -= 360
+	} else if hueDiff < -180 {
+		hueDiff += 360
 	}
 
+	absHueDiff := math.Abs(hueDiff)
+
 	// Only update if hue changed significantly (at least 1 degree)
-	if hueDiff < 1 {
+	if absHueDiff < 1 {
 		return false
 	}
 
+	// Rate limit: max hue change based on time elapsed (with 2x safety margin)
+	// At 30 deg/sec, in 100ms we should move at most 3 degrees
+	// Allow 2x for timing jitter, so max 6 degrees per 100ms
+	maxAllowedChange := timeSinceLastUpdate * t.AnimationSpeed * 2.0
+	if maxAllowedChange < 5 {
+		maxAllowedChange = 5 // Minimum threshold to allow animation to start
+	}
+
+	// If the jump is too large, something is wrong - use incremental update instead
+	if absHueDiff > maxAllowedChange && t.animLastUpdate.After(t.animStartTime) {
+		// Clamp to maximum allowed change in the same direction
+		if hueDiff > 0 {
+			newHueOffset = math.Mod(oldOffset+maxAllowedChange, 360)
+		} else {
+			newHueOffset = math.Mod(oldOffset-maxAllowedChange+360, 360)
+		}
+	}
+
 	t.animHueOffset = newHueOffset
+	t.animLastUpdate = now
 
 	// Call the color function to generate new colors
 	colors := t.ColorFunc(0, t.animHueOffset)
 
 	// Create a new atomic snapshot of animated colors
 	// This is swapped atomically so readers see a consistent set of colors
+	// Wrap colors in Color8Bit to ensure proper RGBA conversion for lipgloss
 	if len(colors) >= 12 {
 		snapshot := &AnimatedColors{
-			Primary:       colors[0],
-			Secondary:     colors[1],
-			Tertiary:      colors[2],
-			Accent:        colors[3],
-			BorderFocus:   colors[4],
-			Success:       colors[5],
-			Error:         colors[6],
-			Warning:       colors[7],
-			Info:          colors[8],
-			BgBase:        colors[9],
-			BgBaseLighter: colors[10],
-			BgSubtle:      colors[11],
+			Primary:       NewColor8Bit(colors[0]),
+			Secondary:     NewColor8Bit(colors[1]),
+			Tertiary:      NewColor8Bit(colors[2]),
+			Accent:        NewColor8Bit(colors[3]),
+			BorderFocus:   NewColor8Bit(colors[4]),
+			Success:       NewColor8Bit(colors[5]),
+			Error:         NewColor8Bit(colors[6]),
+			Warning:       NewColor8Bit(colors[7]),
+			Info:          NewColor8Bit(colors[8]),
+			BgBase:        NewColor8Bit(colors[9]),
+			BgBaseLighter: NewColor8Bit(colors[10]),
+			BgSubtle:      NewColor8Bit(colors[11]),
 			HueOffset:     t.animHueOffset,
 		}
 		t.animColors.Store(snapshot)
 
 		// Also update the theme fields for backward compatibility
-		t.Primary = colors[0]
-		t.Secondary = colors[1]
-		t.Tertiary = colors[2]
-		t.Accent = colors[3]
-		t.BorderFocus = colors[4]
-		t.Success = colors[5]
-		t.Error = colors[6]
-		t.Warning = colors[7]
-		t.Info = colors[8]
-		t.BgBase = colors[9]
-		t.BgBaseLighter = colors[10]
-		t.BgSubtle = colors[11]
+		t.Primary = NewColor8Bit(colors[0])
+		t.Secondary = NewColor8Bit(colors[1])
+		t.Tertiary = NewColor8Bit(colors[2])
+		t.Accent = NewColor8Bit(colors[3])
+		t.BorderFocus = NewColor8Bit(colors[4])
+		t.Success = NewColor8Bit(colors[5])
+		t.Error = NewColor8Bit(colors[6])
+		t.Warning = NewColor8Bit(colors[7])
+		t.Info = NewColor8Bit(colors[8])
+		t.BgBase = NewColor8Bit(colors[9])
+		t.BgBaseLighter = NewColor8Bit(colors[10])
+		t.BgSubtle = NewColor8Bit(colors[11])
 	}
 
 	// Rebuild lipgloss styles if the theme has a style builder
@@ -321,6 +390,30 @@ func (t *Theme) GetAnimatedColors() *AnimatedColors {
 	return t.animColors.Load()
 }
 
+// InitAnimatedColors initializes the atomic color snapshot from the theme's current colors.
+// Call this after creating an animated theme to ensure GetAnimatedColors never returns nil.
+func (t *Theme) InitAnimatedColors() {
+	if !t.Animated {
+		return
+	}
+	snapshot := &AnimatedColors{
+		Primary:       t.Primary,
+		Secondary:     t.Secondary,
+		Tertiary:      t.Tertiary,
+		Accent:        t.Accent,
+		BorderFocus:   t.BorderFocus,
+		Success:       t.Success,
+		Error:         t.Error,
+		Warning:       t.Warning,
+		Info:          t.Info,
+		BgBase:        t.BgBase,
+		BgBaseLighter: t.BgBaseLighter,
+		BgSubtle:      t.BgSubtle,
+		HueOffset:     0,
+	}
+	t.animColors.Store(snapshot)
+}
+
 // GetHueOffset returns the current animation hue offset.
 // Uses the atomic snapshot for lock-free access.
 func (t *Theme) GetHueOffset() float64 {
@@ -337,6 +430,15 @@ func (t *Theme) cursorColor() color.Color {
 		return t.FgCursor
 	}
 	return t.Secondary
+}
+
+// ButtonColor returns the text color for buttons.
+// Uses FgButton if set, otherwise falls back to FgSelected.
+func (t *Theme) ButtonColor() color.Color {
+	if t.FgButton != nil {
+		return t.FgButton
+	}
+	return t.FgSelected
 }
 
 func (t *Theme) buildStyles() *Styles {
@@ -955,37 +1057,59 @@ func ApplyForegroundGrad(input string, color1, color2 color.Color) string {
 	return o.String()
 }
 
-// perceivedBrightnessAdjust returns saturation reduction and value boost for
-// perceptually darker hues. Blue (240°) and purple (270-300°) appear darker
-// than yellow/green/cyan at the same HSV values, so we compensate by reducing
-// saturation (makes colors lighter/more pastel) and boosting value.
-func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
+// PerceivedBrightnessAdjust returns saturation reduction for perceptually
+// darker or more intense hues. Blue/violet appear darker and red appears
+// more intense than other colors at the same HSV values, so we compensate.
+// This is the single source of truth for chroma brightness compensation.
+func PerceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
 	h = math.Mod(h+360, 360)
 
-	// Center the adjustment around 250° (deep blue)
-	// This is where colors appear darkest perceptually
-	center := 250.0
-	// Half-width of the adjustment region in degrees
-	width := 70.0
+	// Blue/Violet adjustment (25% max saturation reduction)
+	// Flat-top curve covering blue (240°) and violet (280°)
+	blueVioletAdj := func() float64 {
+		blueCenter := 240.0
+		violetCenter := 280.0
+		midpoint := (blueCenter + violetCenter) / 2 // 260°
 
-	// Calculate distance from center (handling wrap-around)
-	dist := math.Abs(h - center)
-	if dist > 180 {
-		dist = 360 - dist
-	}
+		dist := math.Abs(h - midpoint)
+		if dist > 180 {
+			dist = 360 - dist
+		}
 
-	// Outside adjustment region - no changes needed
-	if dist > width {
-		return 0, 0
-	}
+		flatWidth := (violetCenter - blueCenter) / 2 // 20°
+		taperWidth := 50.0
 
-	// Smooth cosine curve for gradual transition
-	factor := (1 + math.Cos(math.Pi*dist/width)) / 2
+		if dist <= flatWidth {
+			return 1.0
+		} else if dist <= flatWidth+taperWidth {
+			taperDist := dist - flatWidth
+			return (1 + math.Cos(math.Pi*taperDist/taperWidth)) / 2
+		}
+		return 0
+	}()
 
-	// Lean more heavily on saturation reduction for lighter appearance
-	// Also add stronger value boost for the deep blue range
-	saturationReduce = 0.20 * factor // reduce saturation by up to 20%
-	valueBoost = 0.10 * factor       // boost value by up to 10%
+	// Red adjustment (15% max saturation reduction)
+	// Centered at 0°/360° with smooth taper
+	redAdj := func() float64 {
+		dist := h
+		if dist > 180 {
+			dist = 360 - dist
+		}
+
+		taperWidth := 40.0
+		if dist <= taperWidth {
+			return (1 + math.Cos(math.Pi*dist/taperWidth)) / 2
+		}
+		return 0
+	}()
+
+	// Combine adjustments (they don't overlap, so take max)
+	blueVioletSatReduce := 0.25 * blueVioletAdj
+	redSatReduce := 0.15 * redAdj
+	saturationReduce = math.Max(blueVioletSatReduce, redSatReduce)
+
+	// No value boost needed since we're using saturation reduction
+	valueBoost = 0
 
 	return saturationReduce, valueBoost
 }
@@ -1025,7 +1149,7 @@ func ApplyAnimatedGrad(input string) string {
 
 		// Apply perceptual brightness compensation for blue/purple hues
 		// Reducing saturation makes colors lighter (more pastel = brighter)
-		satReduce, valBoost := perceivedBrightnessAdjust(charHue)
+		satReduce, valBoost := PerceivedBrightnessAdjust(charHue)
 		saturation := math.Max(0.3, 0.7-satReduce) // base 0.7, reduce for dark hues
 		value := math.Min(1.0, 1.0+valBoost)
 

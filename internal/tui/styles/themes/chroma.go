@@ -15,48 +15,14 @@ import (
 // This theme supports animation - accent colors cycle through the rainbow in sync.
 // Base/text colors are neutral grayscale for readability and performance.
 
-// perceivedBrightnessAdjust returns saturation reduction and value boost for
-// perceptually darker hues. Blue (240°) and purple (270-300°) appear darker
-// than yellow/green/cyan at the same HSV values, so we compensate by reducing
-// saturation (makes colors lighter/more pastel) and boosting value.
-func perceivedBrightnessAdjust(h float64) (saturationReduce, valueBoost float64) {
-	h = math.Mod(h+360, 360)
-
-	// Center the adjustment around 250° (deep blue)
-	// This is where colors appear darkest perceptually
-	center := 250.0
-	// Half-width of the adjustment region in degrees
-	width := 70.0
-
-	// Calculate distance from center (handling wrap-around)
-	dist := math.Abs(h - center)
-	if dist > 180 {
-		dist = 360 - dist
-	}
-
-	// Outside adjustment region - no changes needed
-	if dist > width {
-		return 0, 0
-	}
-
-	// Smooth cosine curve for gradual transition
-	factor := (1 + math.Cos(math.Pi*dist/width)) / 2
-
-	// Lean more heavily on saturation reduction for lighter appearance
-	// Also add stronger value boost for the deep blue range
-	saturationReduce = 0.20 * factor // reduce saturation by up to 20%
-	valueBoost = 0.10 * factor       // boost value by up to 10%
-
-	return saturationReduce, valueBoost
-}
-
 // hsvColor creates a color from HSV values with perceptual brightness compensation.
 // h: hue (0-360), s: saturation (0-1), v: value (0-1)
+// Uses styles.PerceivedBrightnessAdjust for consistent brightness across all chroma usage.
 func hsvColor(h, s, v float64) colorful.Color {
 	h = math.Mod(h+360, 360)
 	// Adjust for perceptually darker hues (blue/purple range)
 	// Reducing saturation makes them lighter/more pastel
-	satReduce, valBoost := perceivedBrightnessAdjust(h)
+	satReduce, valBoost := styles.PerceivedBrightnessAdjust(h)
 	s = math.Max(0.0, s-satReduce)
 	v = math.Min(1.0, v+valBoost)
 	return colorful.Hsv(h, s, v)
@@ -101,49 +67,51 @@ func chromaColorFunc(baseHue, hueOffset float64) []color.Color {
 // chromaStyleBuilder rebuilds lipgloss styles during animation.
 func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 	h := hueOffset
-	accent := hsvColor(h, 1.0, 1.0)
-	bgDark := hsvColor(h, 0.6, 0.10)
+	// Wrap colors in Color8Bit to ensure proper RGBA conversion for lipgloss
+	wrap := styles.NewColor8Bit
+	accent := wrap(hsvColor(h, 1.0, 1.0))
+	bgDark := wrap(hsvColor(h, 0.6, 0.10))
 
 	// Text colors stay neutral gray - they get cached and can't animate reliably
 	// Only accents, borders, backgrounds, and specific UI elements animate
 
 	// Text selection uses neutral selection color (not animated for caching)
-	t.TextSelection = lipgloss.NewStyle().Foreground(chromaFgSelected).Background(chromaSelection)
+	t.TextSelection = lipgloss.NewStyle().Foreground(wrap(chromaFgSelected)).Background(wrap(chromaSelection))
 
 	// LSP and MCP status - all use animated accent
-	t.ItemOfflineIcon = lipgloss.NewStyle().Foreground(chromaFgSubtle).SetString("●")
+	t.ItemOfflineIcon = lipgloss.NewStyle().Foreground(wrap(chromaFgSubtle)).SetString("●")
 	t.ItemBusyIcon = t.ItemOfflineIcon.Foreground(accent)
-	t.ItemErrorIcon = t.ItemOfflineIcon.Foreground(hsvColor(h+180, 0.9, 0.85))
+	t.ItemErrorIcon = t.ItemOfflineIcon.Foreground(wrap(hsvColor(h+180, 0.9, 0.85)))
 	t.ItemOnlineIcon = t.ItemOfflineIcon.Foreground(accent)
 
 	// Editor: Yolo Mode - animated accent color
 	t.YoloIconFocused = lipgloss.NewStyle().Foreground(bgDark).Background(accent).Bold(true).SetString(" ! ")
-	t.YoloIconBlurred = t.YoloIconFocused.Foreground(chromaFgMuted).Background(chromaBgOverlay)
+	t.YoloIconBlurred = t.YoloIconFocused.Foreground(wrap(chromaFgMuted)).Background(wrap(chromaBgOverlay))
 	t.YoloDotsFocused = lipgloss.NewStyle().Foreground(accent).SetString(":::")
-	t.YoloDotsBlurred = t.YoloDotsFocused.Foreground(chromaFgSubtle)
+	t.YoloDotsBlurred = t.YoloDotsFocused.Foreground(wrap(chromaFgSubtle))
 
 	// oAuth Chooser
 	t.AuthBorderSelected = lipgloss.NewStyle().BorderForeground(accent)
 	t.AuthTextSelected = lipgloss.NewStyle().Foreground(accent)
-	t.AuthBorderUnselected = lipgloss.NewStyle().BorderForeground(chromaBorder)
-	t.AuthTextUnselected = lipgloss.NewStyle().Foreground(chromaFgMuted)
+	t.AuthBorderUnselected = lipgloss.NewStyle().BorderForeground(wrap(chromaBorder))
+	t.AuthTextUnselected = lipgloss.NewStyle().Foreground(wrap(chromaFgMuted))
 
 	// Dialog styles - animated rainbow text for dialogs (they render fresh each frame)
-	pastel := hsvColor(h, 0.45, 1.0) // Match Secondary
+	pastel := wrap(hsvColor(h, 0.45, 1.0)) // Match Secondary
 	t.DialogTitle = lipgloss.NewStyle().Foreground(accent).Bold(true)
 	t.DialogText = lipgloss.NewStyle().Foreground(pastel)
-	t.DialogHint = lipgloss.NewStyle().Foreground(chromaFgMuted).Faint(true)
+	t.DialogHint = lipgloss.NewStyle().Foreground(wrap(chromaFgMuted)).Faint(true)
 
 	// Help bar styles - animated shortcuts, neutral dots
 	base := lipgloss.NewStyle()
 	t.HelpStyles = help.Styles{
 		ShortKey:       base.Foreground(pastel),
-		ShortDesc:      base.Foreground(chromaFgMuted),
-		ShortSeparator: base.Foreground(chromaFgSubtle),
-		Ellipsis:       base.Foreground(chromaFgSubtle),
+		ShortDesc:      base.Foreground(wrap(chromaFgMuted)),
+		ShortSeparator: base.Foreground(wrap(chromaFgSubtle)),
+		Ellipsis:       base.Foreground(wrap(chromaFgSubtle)),
 		FullKey:        base.Foreground(pastel),
-		FullDesc:       base.Foreground(chromaFgMuted),
-		FullSeparator:  base.Foreground(chromaFgSubtle),
+		FullDesc:       base.Foreground(wrap(chromaFgMuted)),
+		FullSeparator:  base.Foreground(wrap(chromaFgSubtle)),
 	}
 }
 
@@ -152,6 +120,9 @@ func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 func NewChromaTheme() *styles.Theme {
 	// Get initial colors at hue offset 0
 	initialColors := chromaColorFunc(0, 0)
+
+	// Wrap colors in Color8Bit to ensure proper RGBA conversion for lipgloss
+	wrap := styles.NewColor8Bit
 
 	t := &styles.Theme{
 		Name:   "chroma",
@@ -164,53 +135,57 @@ func NewChromaTheme() *styles.Theme {
 		StyleBuilder:   chromaStyleBuilder,
 
 		// Animated accent colors
-		Primary:   initialColors[0],
-		Secondary: initialColors[1],
-		Tertiary:  initialColors[2],
-		Accent:    initialColors[3],
+		Primary:   wrap(initialColors[0]),
+		Secondary: wrap(initialColors[1]),
+		Tertiary:  wrap(initialColors[2]),
+		Accent:    wrap(initialColors[3]),
 
 		// Animated backgrounds (subtle tint)
-		BgBase:        initialColors[9],
-		BgBaseLighter: initialColors[10],
-		BgSubtle:      initialColors[11],
-		BgOverlay:     chromaBgOverlay,
+		BgBase:        wrap(initialColors[9]),
+		BgBaseLighter: wrap(initialColors[10]),
+		BgSubtle:      wrap(initialColors[11]),
+		BgOverlay:     wrap(chromaBgOverlay),
 
 		// Static neutral foregrounds (grayscale) - text gets cached by components
-		FgBase:      chromaFgBase,      // Near white
-		FgMuted:     chromaFgMuted,     // Medium gray
-		FgHalfMuted: chromaFgHalfMuted, // Light gray
-		FgSubtle:    chromaFgSubtle,    // Dark gray
-		FgSelected:  chromaFgSelected,
-		FgCursor:    chromaFgBase,      // Neutral white cursor (not animated)
+		FgBase:      wrap(chromaFgBase),      // Near white
+		FgMuted:     wrap(chromaFgMuted),     // Medium gray
+		FgHalfMuted: wrap(chromaFgHalfMuted), // Light gray
+		FgSubtle:    wrap(chromaFgSubtle),    // Dark gray
+		FgSelected:  wrap(chromaFgSelected),
+		FgButton:    wrap(chromaFgSelected),
+		FgCursor:    wrap(chromaFgBase), // Neutral white cursor (not animated)
 
 		// Borders
-		Border:      chromaBorder,
-		BorderFocus: initialColors[4],
+		Border:      wrap(chromaBorder),
+		BorderFocus: wrap(initialColors[4]),
 
 		// Animated status colors
-		Success: initialColors[5],
-		Error:   initialColors[6],
-		Warning: initialColors[7],
-		Info:    initialColors[8],
+		Success: wrap(initialColors[5]),
+		Error:   wrap(initialColors[6]),
+		Warning: wrap(initialColors[7]),
+		Info:    wrap(initialColors[8]),
 
 		// Named colors - static neutral values
-		White:      chromaFgBase,
-		Yellow:     initialColors[7],
-		Citron:     initialColors[7],
-		Blue:       initialColors[0],
-		BlueLight:  initialColors[0],
-		BlueDark:   initialColors[1],
-		Green:      initialColors[5],
-		GreenDark:  initialColors[2],
-		GreenLight: initialColors[1],
-		Red:        initialColors[6],
-		RedDark:    hsvColor(180, 0.7, 0.6),
-		RedLight:   hsvColor(180, 0.9, 0.9),
-		Cherry:     initialColors[6],
+		White:      wrap(chromaFgBase),
+		Yellow:     wrap(initialColors[7]),
+		Citron:     wrap(initialColors[7]),
+		Blue:       wrap(initialColors[0]),
+		BlueLight:  wrap(initialColors[0]),
+		BlueDark:   wrap(initialColors[1]),
+		Green:      wrap(initialColors[5]),
+		GreenDark:  wrap(initialColors[2]),
+		GreenLight: wrap(initialColors[1]),
+		Red:        wrap(initialColors[6]),
+		RedDark:    wrap(hsvColor(180, 0.7, 0.6)),
+		RedLight:   wrap(hsvColor(180, 0.9, 0.9)),
+		Cherry:     wrap(initialColors[6]),
 	}
 
 	// Initialize lipgloss styles with initial colors
 	chromaStyleBuilder(t, 0)
+
+	// Initialize the atomic color snapshot so GetAnimatedColors never returns nil
+	t.InitAnimatedColors()
 
 	return t
 }

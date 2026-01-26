@@ -3,7 +3,9 @@ package editor
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"log/slog"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"charm.land/bubbles/v2/key"
@@ -40,6 +43,14 @@ import (
 var (
 	errClipboardPlatformUnsupported = fmt.Errorf("clipboard operations are not supported on this platform")
 	errClipboardUnknownFormat       = fmt.Errorf("unknown clipboard format")
+)
+
+// Yolo color cache to prevent flicker from hue jumps
+var (
+	yoloColorMu    sync.Mutex
+	yoloLastAccent color.Color
+	yoloLastBgBase color.Color
+	yoloLastHue    float64
 )
 
 // If pasted text has more than 10 newlines, treat it as a file attachment.
@@ -553,6 +564,7 @@ func (m *editorCmp) Cursor() *tea.Cursor {
 	if cursor != nil {
 		cursor.X = cursor.X + m.x + 1
 		cursor.Y = cursor.Y + m.y + 1 // adjust for padding
+		cursor.Blink = true
 	}
 	return cursor
 }
@@ -746,31 +758,96 @@ func normalPromptFunc(info textarea.PromptInfo) string {
 	return t.S().Muted.Render("::: ")
 }
 
-func yoloPromptFunc(info textarea.PromptInfo) string {
-	t := styles.CurrentTheme()
+// getYoloColors returns validated accent and bgBase colors for the yolo indicator.
+// It caches the last good colors and rejects hue jumps that are too large.
+func getYoloColors(t *styles.Theme) (accent, bgBase color.Color) {
+	colors := t.GetAnimatedColors()
 
-	// For animated themes, render fresh using atomic snapshot colors to avoid flicker
-	if t.IsAnimated() {
-		if snapshot := t.GetAnimatedColors(); snapshot != nil {
-			if info.LineNumber == 0 {
-				if info.Focused {
-					return lipgloss.NewStyle().Foreground(snapshot.BgBase).Background(snapshot.Accent).Bold(true).Render(" ! ") + " "
-				}
-				return lipgloss.NewStyle().Foreground(t.FgMuted).Background(t.BgOverlay).Bold(true).Render(" ! ") + " "
-			}
-			if info.Focused {
-				return lipgloss.NewStyle().Foreground(snapshot.Accent).Render(":::") + " "
-			}
-			return lipgloss.NewStyle().Foreground(t.FgSubtle).Render(":::") + " "
+	// Get candidate colors from atomic snapshot
+	var candidateAccent, candidateBgBase color.Color
+	var candidateHue float64
+
+	if colors != nil {
+		candidateAccent = colors.Accent
+		candidateBgBase = colors.BgBase
+		candidateHue = colors.HueOffset
+	} else {
+		candidateAccent = t.Accent
+		candidateBgBase = t.BgBase
+		candidateHue = t.GetHueOffset()
+	}
+
+	yoloColorMu.Lock()
+	defer yoloColorMu.Unlock()
+
+	// If we have a previous color, validate the hue transition
+	if yoloLastAccent != nil {
+		// Calculate hue difference (accounting for wrap-around)
+		hueDiff := candidateHue - yoloLastHue
+		if hueDiff > 180 {
+			hueDiff -= 360
+		} else if hueDiff < -180 {
+			hueDiff += 360
+		}
+
+		// Reject hue jumps larger than 15 degrees (allows ~0.5 sec of movement at 30 deg/sec)
+		// This prevents single-frame flickers to wrong colors
+		if math.Abs(hueDiff) > 15 {
+			return yoloLastAccent, yoloLastBgBase
 		}
 	}
 
+	// Accept the new colors
+	yoloLastAccent = candidateAccent
+	yoloLastBgBase = candidateBgBase
+	yoloLastHue = candidateHue
+
+	return candidateAccent, candidateBgBase
+}
+
+// colorToHex converts a color.Color to a hex color string for reliable rendering.
+// This avoids issues with 16-bit vs 8-bit color conversion in colorful.Color.
+func colorToHex(c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	// RGBA() returns 16-bit values (0-65535), convert to 8-bit
+	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+}
+
+func yoloPromptFunc(info textarea.PromptInfo) string {
+	t := styles.CurrentTheme()
+
+	// For animated themes, use validated colors to prevent flicker
+	if t.IsAnimated() {
+		accent, bgBase := getYoloColors(t)
+
+		// Convert to hex colors to avoid 16-bit/8-bit conversion bugs
+		accentHex := lipgloss.Color(colorToHex(accent))
+		bgBaseHex := lipgloss.Color(colorToHex(bgBase))
+
+		var result string
+		if info.LineNumber == 0 {
+			if info.Focused {
+				result = lipgloss.NewStyle().Foreground(bgBaseHex).Background(accentHex).Bold(true).Render(" ! ") + " "
+			} else {
+				result = lipgloss.NewStyle().Foreground(t.FgMuted).Background(t.BgOverlay).Bold(true).Render(" ! ") + " "
+			}
+		} else {
+			if info.Focused {
+				result = lipgloss.NewStyle().Foreground(accentHex).Render(":::") + " "
+			} else {
+				result = lipgloss.NewStyle().Foreground(t.FgSubtle).Render(":::") + " "
+			}
+		}
+
+		return result
+	}
+
+	// Non-animated themes use pre-built styles
 	if info.LineNumber == 0 {
 		if info.Focused {
 			return fmt.Sprintf("%s ", t.YoloIconFocused)
-		} else {
-			return fmt.Sprintf("%s ", t.YoloIconBlurred)
 		}
+		return fmt.Sprintf("%s ", t.YoloIconBlurred)
 	}
 	if info.Focused {
 		return fmt.Sprintf("%s ", t.YoloDotsFocused)
