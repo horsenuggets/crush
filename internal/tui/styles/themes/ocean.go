@@ -16,7 +16,7 @@ var (
 	oceanFgMuted     = styles.ParseHex("#8caac8") // Muted blue-gray
 	oceanFgHalfMuted = styles.ParseHex("#a0bed7") // Light blue-gray
 	oceanFgSubtle    = styles.ParseHex("#6482a5") // Subtle blue
-	oceanFgSelected  = styles.ParseHex("#ffffff") // White
+	oceanFgSelected  = styles.ParseHex("#0b132b") // Dark navy for contrast on teal selection
 
 	oceanBorder      = styles.ParseHex("#283c64") // Deep border
 	oceanBorderFocus = styles.ParseHex("#40bebc") // Teal
@@ -71,6 +71,7 @@ func NewOceanTheme() *styles.Theme {
 		FgHalfMuted: oceanFgHalfMuted,
 		FgSubtle:    oceanFgSubtle,
 		FgSelected:  oceanFgSelected,
+		FgButton:    oceanFgBase, // White text for contrast on blue buttons
 
 		Border:      oceanBorder,
 		BorderFocus: oceanBorderFocus,
