@@ -6,21 +6,29 @@ import (
 )
 
 // Monokai theme - classic code editor color scheme.
+// UI elements use brown/olive tones; bright colors are for code syntax only.
 var (
 	monokaiBg        = styles.ParseHex("#272822")
 	monokaiBgLight   = styles.ParseHex("#31322c") // Slightly lighter
 	monokaiBgSubtle  = styles.ParseHex("#3b3c36") // Subtle bg
 	monokaiBgOverlay = styles.ParseHex("#454640") // Overlay
 
+	// UI accent browns (for selection bars, buttons, borders)
+	monokaiUISelect = styles.ParseHex("#75756a") // Selection bar - brighter olive brown
+	monokaiUIButton = styles.ParseHex("#BEBEAC") // Button highlight
+	monokaiUIBorder = styles.ParseHex("#6a6a5c") // Focused border - visible brown
+
 	monokaiFg        = styles.ParseHex("#f8f8f2") // white
 	monokaiComment   = styles.ParseHex("#75715e")
+	monokaiFgHalf    = styles.ParseHex("#969282")
+
+	// Syntax colors (for code highlighting only)
 	monokaiRed       = styles.ParseHex("#f92672") // pink/red
 	monokaiOrange    = styles.ParseHex("#fd971f")
 	monokaiYellow    = styles.ParseHex("#e6db74")
 	monokaiGreen     = styles.ParseHex("#a6e22e")
 	monokaiCyan      = styles.ParseHex("#66d9ef")
 	monokaiPurple    = styles.ParseHex("#ae81ff")
-	monokaiFgHalf    = styles.ParseHex("#969282")
 	monokaiBlueDark  = styles.ParseHex("#3c8ca0")
 	monokaiGreenDark = styles.ParseHex("#78b41e")
 	monokaiRedDark   = styles.ParseHex("#b41e50")
@@ -33,10 +41,11 @@ func NewMonokaiTheme() *styles.Theme {
 		Name:   "monokai",
 		IsDark: true,
 
-		Primary:   monokaiCyan,
-		Secondary: monokaiComment,
+		// UI colors use brown tones, not syntax colors
+		Primary:   monokaiUISelect, // Selection bar - lighter brown
+		Secondary: monokaiUIButton, // Buttons - medium brown
 		Tertiary:  monokaiComment,
-		Accent:    monokaiPurple,
+		Accent:    monokaiUIBorder,
 
 		BgBase:        monokaiBg,
 		BgBaseLighter: monokaiBgLight,
@@ -47,10 +56,11 @@ func NewMonokaiTheme() *styles.Theme {
 		FgMuted:     monokaiComment,
 		FgHalfMuted: monokaiFgHalf,
 		FgSubtle:    monokaiComment,
-		FgSelected:  monokaiFg,
+		FgSelected:  monokaiBg, // Dark text on brown selection bar
+		FgButton:    monokaiBg, // Dark text on light beige buttons
 
 		Border:      monokaiBgSubtle,
-		BorderFocus: monokaiCyan,
+		BorderFocus: monokaiUIBorder, // Brown border, not cyan
 
 		Success: monokaiGreen,
 		Error:   monokaiRed,
