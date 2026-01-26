@@ -69,8 +69,7 @@ func NewGitHubTheme() *styles.Theme {
 		FgMuted:     ghFgMuted,
 		FgHalfMuted: ghFgHalfMuted,
 		FgSubtle:    ghFgSubtle,
-		FgSelected:  ghFgSelected,
-		FgButton:    ghFgSelected,
+		FgSelected: ghFgSelected,
 
 		Border:      ghBorder,
 		BorderFocus: ghBorderFocus,

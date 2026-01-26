@@ -177,10 +177,10 @@ func (d *installDialogCmp) renderPrompt(t *styles.Theme, baseStyle lipgloss.Styl
 	noStyle := yesStyle
 
 	if d.selectedNo {
-		noStyle = noStyle.Foreground(t.ButtonColor()).Background(t.Secondary)
+		noStyle = noStyle.Foreground(t.FgSelected).Background(t.Primary)
 		yesStyle = yesStyle.Background(t.BgSubtle)
 	} else {
-		yesStyle = yesStyle.Foreground(t.ButtonColor()).Background(t.Secondary)
+		yesStyle = yesStyle.Foreground(t.FgSelected).Background(t.Primary)
 		noStyle = noStyle.Background(t.BgSubtle)
 	}
 

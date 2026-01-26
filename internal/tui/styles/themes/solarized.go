@@ -48,8 +48,7 @@ func NewSolarizedTheme() *styles.Theme {
 		FgMuted:     solBase01,
 		FgHalfMuted: solBase00,
 		FgSubtle:    solBase01,
-		FgSelected:  solBase3,
-		FgButton:    solBase3,
+		FgSelected: solBase3,
 
 		Border:      solBase02,
 		BorderFocus: solBlue,

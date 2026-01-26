@@ -151,9 +151,8 @@ func NewChromaTheme() *styles.Theme {
 		FgMuted:     wrap(chromaFgMuted),     // Medium gray
 		FgHalfMuted: wrap(chromaFgHalfMuted), // Light gray
 		FgSubtle:    wrap(chromaFgSubtle),    // Dark gray
-		FgSelected:  wrap(chromaFgSelected),
-		FgButton:    wrap(chromaFgSelected),
-		FgCursor:    wrap(chromaFgBase), // Neutral white cursor (not animated)
+		FgSelected: wrap(chromaFgSelected),
+		FgCursor:   wrap(chromaFgBase), // Neutral white cursor (not animated)
 
 		// Borders
 		Border:      wrap(chromaBorder),

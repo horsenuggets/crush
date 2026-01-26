@@ -15,14 +15,14 @@ var (
 
 	// Foregrounds (dark to light)
 	darkFgSubtle    = styles.ParseHex("#605F6B") // Oyster
-	darkFgMuted     = styles.ParseHex("#605F6B") // Oyster
+	darkFgMuted     = styles.ParseHex("#858392") // Squid
 	darkFgHalfMuted = styles.ParseHex("#BFBCC8") // Smoke
 	darkFgBase      = styles.ParseHex("#DFDBDD") // Ash
 	darkFgSelected  = styles.ParseHex("#F1EFEF") // Salt
 
 	// Accent colors
-	darkPrimary   = styles.ParseHex("#4D4C57") // Iron
-	darkSecondary = styles.ParseHex("#BFBCC8") // Smoke
+	darkPrimary   = styles.ParseHex("#00A4FF") // Malibu
+	darkSecondary = styles.ParseHex("#00A4FF") // Malibu
 	darkTertiary  = styles.ParseHex("#DFDBDD") // Ash
 	darkAccent    = styles.ParseHex("#00A4FF") // Malibu
 
@@ -74,8 +74,7 @@ func NewDarkTheme() *styles.Theme {
 		FgMuted:     darkFgMuted,
 		FgHalfMuted: darkFgHalfMuted,
 		FgSubtle:    darkFgSubtle,
-		FgSelected:  darkFgSelected,
-		FgButton:    darkFgSelected,
+		FgSelected: darkBgBase,
 
 		// Borders
 		Border:      darkBorder,

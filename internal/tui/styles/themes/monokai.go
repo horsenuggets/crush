@@ -56,8 +56,7 @@ func NewMonokaiTheme() *styles.Theme {
 		FgMuted:     monokaiComment,
 		FgHalfMuted: monokaiFgHalf,
 		FgSubtle:    monokaiComment,
-		FgSelected:  monokaiBg, // Dark text on brown selection bar
-		FgButton:    monokaiBg, // Dark text on light beige buttons
+		FgSelected: monokaiBg, // Dark text on brown selection bar
 
 		Border:      monokaiBgSubtle,
 		BorderFocus: monokaiUIBorder, // Brown border, not cyan

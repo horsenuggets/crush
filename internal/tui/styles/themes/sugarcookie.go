@@ -71,8 +71,7 @@ func NewSugarcookieTheme() *styles.Theme {
 		FgMuted:     sugarFgMuted,
 		FgHalfMuted: sugarFgHalfMuted,
 		FgSubtle:    sugarFgSubtle,
-		FgSelected:  sugarFgSelected,
-		FgButton:    sugarFgBase, // Dark text for contrast on lavender buttons
+		FgSelected: sugarFgSelected,
 
 		// Borders
 		Border:      sugarBorder,

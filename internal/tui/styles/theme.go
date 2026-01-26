@@ -52,9 +52,8 @@ type Theme struct {
 	FgMuted     color.Color
 	FgHalfMuted color.Color
 	FgSubtle    color.Color
-	FgSelected  color.Color // Text color on menu selection bars (Primary background)
-	FgButton    color.Color // Text color on buttons (Secondary background), defaults to FgSelected if nil
-	FgCursor    color.Color // Optional cursor color, defaults to Secondary if nil
+	FgSelected color.Color // Text color on selection bars and buttons (Primary background)
+	FgCursor   color.Color // Optional cursor color, defaults to Secondary if nil
 
 	Border      color.Color
 	BorderFocus color.Color
@@ -430,15 +429,6 @@ func (t *Theme) cursorColor() color.Color {
 		return t.FgCursor
 	}
 	return t.Secondary
-}
-
-// ButtonColor returns the text color for buttons.
-// Uses FgButton if set, otherwise falls back to FgSelected.
-func (t *Theme) ButtonColor() color.Color {
-	if t.FgButton != nil {
-		return t.FgButton
-	}
-	return t.FgSelected
 }
 
 func (t *Theme) buildStyles() *Styles {

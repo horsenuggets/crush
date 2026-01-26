@@ -70,8 +70,7 @@ func NewOceanTheme() *styles.Theme {
 		FgMuted:     oceanFgMuted,
 		FgHalfMuted: oceanFgHalfMuted,
 		FgSubtle:    oceanFgSubtle,
-		FgSelected:  oceanFgSelected,
-		FgButton:    oceanFgBase, // White text for contrast on blue buttons
+		FgSelected: oceanFgSelected,
 
 		Border:      oceanBorder,
 		BorderFocus: oceanBorderFocus,

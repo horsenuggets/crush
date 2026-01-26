@@ -74,8 +74,7 @@ func NewCharmtoneTheme() *styles.Theme {
 		FgMuted:     charmtoneFgMuted,
 		FgHalfMuted: charmtoneFgHalfMuted,
 		FgSubtle:    charmtoneFgSubtle,
-		FgSelected:  charmtoneFgSelected,
-		FgButton:    charmtoneBgBase, // Pepper - dark text on light buttons
+		FgSelected: charmtoneFgSelected,
 
 		// Borders
 		Border:      charmtoneBorder,

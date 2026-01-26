@@ -69,8 +69,7 @@ func NewHackerTheme() *styles.Theme {
 		FgMuted:     hackerFgMuted,
 		FgHalfMuted: hackerFgHalfMuted,
 		FgSubtle:    hackerFgSubtle,
-		FgSelected:  hackerFgSelected,
-		FgButton:    hackerFgSelected,
+		FgSelected: hackerFgSelected,
 
 		Border:      hackerBorder,
 		BorderFocus: hackerBorderFocus,
