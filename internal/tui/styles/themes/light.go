@@ -72,6 +72,7 @@ func NewLightTheme() *styles.Theme {
 		FgHalfMuted: lightFgHalfMuted,
 		FgSubtle:    lightFgSubtle,
 		FgSelected:  lightFgSelected,
+		FgButton:    lightFgSelected,
 
 		// Borders
 		Border:      lightBorder,
