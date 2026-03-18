@@ -76,6 +76,11 @@ type sidebarCmp struct {
 	history        history.Service
 	files          *csync.Map[string, SessionFile]
 	contextManager *crushctx.Manager
+
+	// Track the model ID when tokens were last updated
+	// This helps show accurate context % after model switches
+	lastTokensModelID string
+	lastTokensTotal   int64
 }
 
 func New(history history.Service, lspClients *csync.Map[string, *lsp.Client], contextManager *crushctx.Manager, compact bool) Sidebar {
@@ -114,6 +119,14 @@ func (m *sidebarCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 	case pubsub.Event[session.Session]:
 		if msg.Type == pubsub.UpdatedEvent {
 			if m.session.ID == msg.Payload.ID {
+				// Check if tokens have changed - if so, update the tracked model
+				newTokens := msg.Payload.CompletionTokens + msg.Payload.PromptTokens
+				if newTokens != m.lastTokensTotal {
+					agentCfg := config.Get().Agents[config.AgentCoder]
+					model := config.Get().GetModelByType(agentCfg.Model)
+					m.lastTokensModelID = model.ID
+					m.lastTokensTotal = newTokens
+				}
 				m.session = msg.Payload
 			}
 		}
@@ -614,14 +627,20 @@ func (s *sidebarCmp) currentModelBlock() string {
 		}
 	}
 	if s.session.ID != "" {
-		parts = append(
-			parts,
-			"  "+formatTokensAndCost(
+		// Show context info, but indicate if model changed since last token update
+		var tokenInfo string
+		if s.lastTokensModelID != "" && s.lastTokensModelID != model.ID {
+			// Model changed since last token update - show placeholder
+			formattedCost := t.S().Base.Foreground(t.FgMuted).Render(fmt.Sprintf("$%.2f", s.session.Cost))
+			tokenInfo = fmt.Sprintf("--%%  %s", formattedCost)
+		} else {
+			tokenInfo = formatTokensAndCost(
 				s.session.CompletionTokens+s.session.PromptTokens,
 				model.ContextWindow,
 				s.session.Cost,
-			),
-		)
+			)
+		}
+		parts = append(parts, "  "+tokenInfo)
 	}
 	return lipgloss.JoinVertical(
 		lipgloss.Left,

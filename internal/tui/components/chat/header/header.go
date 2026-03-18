@@ -30,6 +30,11 @@ type header struct {
 	session     session.Session
 	lspClients  *csync.Map[string, *lsp.Client]
 	detailsOpen bool
+
+	// Track the model ID when tokens were last updated
+	// This helps show accurate context % after model switches
+	lastTokensModelID string
+	lastTokensTotal   int64
 }
 
 func New(lspClients *csync.Map[string, *lsp.Client]) Header {
@@ -48,6 +53,14 @@ func (h *header) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 	case pubsub.Event[session.Session]:
 		if msg.Type == pubsub.UpdatedEvent {
 			if h.session.ID == msg.Payload.ID {
+				// Check if tokens have changed - if so, update the tracked model
+				newTokens := msg.Payload.CompletionTokens + msg.Payload.PromptTokens
+				if newTokens != h.lastTokensTotal {
+					agentCfg := config.Get().Agents[config.AgentCoder]
+					model := config.Get().GetModelByType(agentCfg.Model)
+					h.lastTokensModelID = model.ID
+					h.lastTokensTotal = newTokens
+				}
 				h.session = msg.Payload
 			}
 		}
@@ -118,8 +131,16 @@ func (h *header) details(availWidth int) string {
 
 	agentCfg := config.Get().Agents[config.AgentCoder]
 	model := config.Get().GetModelByType(agentCfg.Model)
-	percentage := (float64(h.session.CompletionTokens+h.session.PromptTokens) / float64(model.ContextWindow)) * 100
-	formattedPercentage := s.Muted.Render(fmt.Sprintf("%d%%", int(percentage)))
+
+	// Show context percentage, but indicate if model changed since last token update
+	var formattedPercentage string
+	if h.lastTokensModelID != "" && h.lastTokensModelID != model.ID {
+		// Model changed since last token update - show placeholder until new tokens arrive
+		formattedPercentage = s.Muted.Render("--%")
+	} else {
+		percentage := (float64(h.session.CompletionTokens+h.session.PromptTokens) / float64(model.ContextWindow)) * 100
+		formattedPercentage = s.Muted.Render(fmt.Sprintf("%d%%", int(percentage)))
+	}
 	parts = append(parts, formattedPercentage)
 
 	const keystroke = "ctrl+d"
