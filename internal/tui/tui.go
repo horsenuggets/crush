@@ -34,6 +34,7 @@ import (
 	ollamadialog "github.com/charmbracelet/crush/internal/tui/components/dialogs/ollama"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/permissions"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/quit"
+	"github.com/charmbracelet/crush/internal/tui/components/dialogs/rename"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/sessions"
 	"github.com/charmbracelet/crush/internal/ollama"
 	"github.com/charmbracelet/crush/internal/tui/page"
@@ -82,7 +83,8 @@ type appModel struct {
 	isConfigured bool
 
 	// Chat Page Specific
-	selectedSessionID string // The ID of the currently selected session
+	selectedSessionID    string // The ID of the currently selected session
+	selectedSessionTitle string // The title of the currently selected session
 
 	// Pending model selection while waiting for Ollama download
 	pendingModelSelection *models.ModelSelectedMsg
@@ -270,8 +272,10 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Session
 	case cmpChat.SessionSelectedMsg:
 		a.selectedSessionID = msg.ID
+		a.selectedSessionTitle = msg.Title
 	case cmpChat.SessionClearedMsg:
 		a.selectedSessionID = ""
+		a.selectedSessionTitle = ""
 	// Commands
 	case commands.SwitchSessionsMsg:
 		return a, func() tea.Msg {
@@ -295,6 +299,25 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return util.ReportError(err)()
 			}
 			return nil
+		}
+	// Rename Session
+	case commands.OpenRenameDialogMsg:
+		return a, util.CmdHandler(dialogs.OpenDialogMsg{
+			Model: rename.NewRenameDialog(msg.SessionID, msg.Title),
+		})
+	case rename.SessionRenamedMsg:
+		return a, func() tea.Msg {
+			sess, err := a.app.Sessions.Get(context.Background(), msg.SessionID)
+			if err != nil {
+				return util.ReportError(err)()
+			}
+			sess.Title = msg.NewTitle
+			_, err = a.app.Sessions.Save(context.Background(), sess)
+			if err != nil {
+				return util.ReportError(err)()
+			}
+			a.selectedSessionTitle = msg.NewTitle
+			return cmpChat.SessionSelectedMsg(sess)
 		}
 	case commands.QuitMsg:
 		return a, util.CmdHandler(dialogs.OpenDialogMsg{
@@ -568,7 +591,7 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 		return util.CmdHandler(dialogs.OpenDialogMsg{
-			Model: commands.NewCommandDialog(a.selectedSessionID),
+			Model: commands.NewCommandDialog(a.selectedSessionID, a.selectedSessionTitle),
 		})
 	case key.Matches(msg, a.keyMap.Models):
 		// if the app is not configured show no models
@@ -712,7 +735,7 @@ func (a *appModel) View() tea.View {
 		cursor = v.Cursor()
 		// Hide the cursor if it's positioned outside the textarea
 		statusHeight := a.height - strings.Count(pageView, "\n") + 1
-		if cursor != nil && cursor.Y+statusHeight+chat.EditorHeight-2 <= a.height { // 2 for the top and bottom app padding
+		if cursor != nil && cursor.Y+statusHeight+chat.MinEditorHeight-2 <= a.height { // 2 for the top and bottom app padding
 			cursor = nil
 		}
 	}

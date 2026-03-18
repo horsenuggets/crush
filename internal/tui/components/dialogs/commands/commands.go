@@ -67,6 +67,7 @@ type commandDialogCmp struct {
 	userCommands []Command             // User-defined commands
 	mcpPrompts   *csync.Slice[Command] // MCP prompts
 	sessionID    string                // Current session ID
+	sessionTitle string                // Current session title
 }
 
 type (
@@ -82,12 +83,16 @@ type (
 	OpenThemeDialogMsg     struct{}
 	OpenExternalEditorMsg  struct{}
 	ToggleYoloModeMsg      struct{}
-	CompactMsg             struct {
+	OpenRenameDialogMsg    struct {
+		SessionID string
+		Title     string
+	}
+	CompactMsg struct {
 		SessionID string
 	}
 )
 
-func NewCommandDialog(sessionID string) CommandsDialog {
+func NewCommandDialog(sessionID, sessionTitle string) CommandsDialog {
 	keyMap := DefaultCommandsDialogKeyMap()
 	listKeyMap := list.DefaultKeyMap()
 	listKeyMap.Down.SetEnabled(false)
@@ -109,13 +114,14 @@ func NewCommandDialog(sessionID string) CommandsDialog {
 	help := help.New()
 	help.Styles = t.S().Help
 	return &commandDialogCmp{
-		commandList: commandList,
-		width:       defaultWidth,
-		keyMap:      DefaultCommandsDialogKeyMap(),
-		help:        help,
-		selected:    SystemCommands,
-		sessionID:   sessionID,
-		mcpPrompts:  csync.NewSlice[Command](),
+		commandList:  commandList,
+		width:        defaultWidth,
+		keyMap:       DefaultCommandsDialogKeyMap(),
+		help:         help,
+		selected:     SystemCommands,
+		sessionID:    sessionID,
+		sessionTitle: sessionTitle,
+		mcpPrompts:   csync.NewSlice[Command](),
 	}
 }
 
@@ -348,8 +354,19 @@ func (c *commandDialogCmp) defaultCommands() []Command {
 		},
 	}
 
-	// Only show compact command if there's an active session
+	// Only show session-specific commands if there's an active session
 	if c.sessionID != "" {
+		commands = append(commands, Command{
+			ID:          "rename_session",
+			Title:       "Rename Session",
+			Description: "Change the session title",
+			Handler: func(cmd Command) tea.Cmd {
+				return util.CmdHandler(OpenRenameDialogMsg{
+					SessionID: c.sessionID,
+					Title:     c.sessionTitle,
+				})
+			},
+		})
 		commands = append(commands, Command{
 			ID:          "Summarize",
 			Title:       "Summarize Session",
