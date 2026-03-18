@@ -51,6 +51,7 @@ type toolCallCmp struct {
 	width    int  // Component width for text wrapping
 	focused  bool // Focus state for border styling
 	isNested bool // Whether this tool call is nested within another
+	expanded bool // Whether the tool output is expanded (showing full content)
 
 	// Tool call data and state
 	parentMessageID     string             // ID of the message that initiated this tool call
@@ -167,6 +168,10 @@ func (m *toolCallCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if key.Matches(msg, CopyKey) {
 			return m, m.copyTool()
+		}
+		if key.Matches(msg, ExpandKey) && m.focused {
+			m.expanded = !m.expanded
+			return m, nil
 		}
 	}
 	return m, nil
@@ -795,6 +800,11 @@ func (m *toolCallCmp) textWidth() int {
 		return m.width - 6
 	}
 	return m.width - 5 // take into account the border and PaddingLeft
+}
+
+// isExpanded returns whether the tool output is expanded to show full content.
+func (m *toolCallCmp) isExpanded() bool {
+	return m.expanded
 }
 
 // fit truncates content to fit within the specified width with ellipsis

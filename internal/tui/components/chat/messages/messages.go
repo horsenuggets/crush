@@ -32,6 +32,9 @@ var CopyKey = key.NewBinding(key.WithKeys("c", "y", "C", "Y"), key.WithHelp("c/y
 // ClearSelectionKey is the key binding for clearing the current selection in the chat interface.
 var ClearSelectionKey = key.NewBinding(key.WithKeys("esc", "alt+esc"), key.WithHelp("esc", "clear selection"))
 
+// ExpandKey is the key binding for expanding/collapsing truncated tool output.
+var ExpandKey = key.NewBinding(key.WithKeys("e", "enter"), key.WithHelp("e/enter", "expand/collapse"))
+
 // MessageCmp defines the interface for message components in the chat interface.
 // It combines standard UI model interfaces with message-specific functionality.
 type MessageCmp interface {

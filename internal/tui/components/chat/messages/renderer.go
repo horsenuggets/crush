@@ -20,8 +20,25 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// responseContextHeight limits the number of lines displayed in tool output
+// responseContextHeight limits the number of lines displayed in tool output.
 const responseContextHeight = 10
+
+// expandedContextHeight is used when tool output is expanded (no practical limit).
+const expandedContextHeight = 10000
+
+// effectiveContextHeight returns the line limit based on expansion state.
+func effectiveContextHeight(v *toolCallCmp) int {
+	if v.isExpanded() {
+		return expandedContextHeight
+	}
+	return responseContextHeight
+}
+
+// truncationMessage returns a styled message showing how many lines are hidden
+// and a hint about how to expand the content.
+func truncationMessage(hiddenLines int) string {
+	return fmt.Sprintf("… (%d lines) press e to expand", hiddenLines)
+}
 
 // renderer defines the interface for tool-specific rendering implementations
 type renderer interface {
@@ -492,14 +509,15 @@ func (er editRenderer) Render(v *toolCallCmp) string {
 		}
 		// add a message to the bottom if the content was truncated
 		formatted := formatter.String()
-		if lipgloss.Height(formatted) > responseContextHeight {
+		maxLines := effectiveContextHeight(v)
+		if lipgloss.Height(formatted) > maxLines {
 			contentLines := strings.Split(formatted, "\n")
 			truncateMessage := t.S().Muted.
 				Background(t.BgBaseLighter).
 				PaddingLeft(2).
 				Width(v.textWidth() - 2).
-				Render(fmt.Sprintf("… (%d lines)", len(contentLines)-responseContextHeight))
-			formatted = strings.Join(contentLines[:responseContextHeight], "\n") + "\n" + truncateMessage
+				Render(truncationMessage(len(contentLines) - maxLines))
+			formatted = strings.Join(contentLines[:maxLines], "\n") + "\n" + truncateMessage
 		}
 		return formatted
 	})
@@ -543,14 +561,15 @@ func (mer multiEditRenderer) Render(v *toolCallCmp) string {
 		}
 		// add a message to the bottom if the content was truncated
 		formatted := formatter.String()
-		if lipgloss.Height(formatted) > responseContextHeight {
+		maxLines := effectiveContextHeight(v)
+		if lipgloss.Height(formatted) > maxLines {
 			contentLines := strings.Split(formatted, "\n")
 			truncateMessage := t.S().Muted.
 				Background(t.BgBaseLighter).
 				PaddingLeft(2).
 				Width(v.textWidth() - 4).
-				Render(fmt.Sprintf("… (%d lines)", len(contentLines)-responseContextHeight))
-			formatted = strings.Join(contentLines[:responseContextHeight], "\n") + "\n" + truncateMessage
+				Render(truncationMessage(len(contentLines) - maxLines))
+			formatted = strings.Join(contentLines[:maxLines], "\n") + "\n" + truncateMessage
 		}
 
 		// Add failed edits warning if any exist
@@ -1077,10 +1096,11 @@ func renderPlainContent(v *toolCallCmp, content string) string {
 	content = strings.TrimSpace(content)
 	lines := strings.Split(content, "\n")
 
+	maxLines := effectiveContextHeight(v)
 	width := v.textWidth() - 2
 	var out []string
 	for i, ln := range lines {
-		if i >= responseContextHeight {
+		if i >= maxLines {
 			break
 		}
 		ln = ansiext.Escape(ln)
@@ -1094,11 +1114,11 @@ func renderPlainContent(v *toolCallCmp, content string) string {
 			Render(ln))
 	}
 
-	if len(lines) > responseContextHeight {
+	if len(lines) > maxLines {
 		out = append(out, t.S().Muted.
 			Background(t.BgBaseLighter).
 			Width(width).
-			Render(fmt.Sprintf("… (%d lines)", len(lines)-responseContextHeight)))
+			Render(truncationMessage(len(lines) - maxLines)))
 	}
 
 	return strings.Join(out, "\n")
@@ -1120,20 +1140,21 @@ func renderMarkdownContent(v *toolCallCmp, content string) string {
 	}
 
 	lines := strings.Split(rendered, "\n")
+	maxLines := effectiveContextHeight(v)
 
 	var out []string
 	for i, ln := range lines {
-		if i >= responseContextHeight {
+		if i >= maxLines {
 			break
 		}
 		out = append(out, ln)
 	}
 
 	style := t.S().Muted.Background(t.BgBaseLighter)
-	if len(lines) > responseContextHeight {
+	if len(lines) > maxLines {
 		out = append(out, style.
 			Width(width-2).
-			Render(fmt.Sprintf("… (%d lines)", len(lines)-responseContextHeight)))
+			Render(truncationMessage(len(lines) - maxLines)))
 	}
 
 	return style.Render(strings.Join(out, "\n"))
@@ -1160,7 +1181,8 @@ func renderCodeContent(v *toolCallCmp, path, content string, offset int) string 
 	t := styles.CurrentTheme()
 	content = strings.ReplaceAll(content, "\r\n", "\n") // Normalize line endings
 	content = strings.ReplaceAll(content, "\t", "    ") // Replace tabs with spaces
-	truncated := truncateHeight(content, responseContextHeight)
+	maxLines := effectiveContextHeight(v)
+	truncated := truncateHeight(content, maxLines)
 
 	lines := strings.Split(truncated, "\n")
 	for i, ln := range lines {
@@ -1171,10 +1193,10 @@ func renderCodeContent(v *toolCallCmp, path, content string, offset int) string 
 	highlighted, _ := highlight.SyntaxHighlight(strings.Join(lines, "\n"), path, bg)
 	lines = strings.Split(highlighted, "\n")
 
-	if len(strings.Split(content, "\n")) > responseContextHeight {
+	if len(strings.Split(content, "\n")) > maxLines {
 		lines = append(lines, t.S().Muted.
 			Background(bg).
-			Render(fmt.Sprintf(" …(%d lines)", len(strings.Split(content, "\n"))-responseContextHeight)))
+			Render(" "+truncationMessage(len(strings.Split(content, "\n"))-maxLines)))
 	}
 
 	maxLineNumber := len(lines) + offset
