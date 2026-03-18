@@ -651,3 +651,187 @@ func execCmd(m util.Model, cmd tea.Cmd) {
 		m, cmd = m.Update(msg)
 	}
 }
+
+func TestSelectItemAtLine(t *testing.T) {
+	t.Parallel()
+
+	t.Run("should select item at clicked line in forward list", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 10 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Initially first item is selected
+		assert.Equal(t, 0, l.selectedItemIdx)
+
+		// Click on line 5 (Item 5)
+		execCmd(l, l.SelectItemAtLine(5))
+		assert.Equal(t, 5, l.selectedItemIdx)
+
+		// Click on line 3 (Item 3)
+		execCmd(l, l.SelectItemAtLine(3))
+		assert.Equal(t, 3, l.selectedItemIdx)
+	})
+
+	t.Run("should select item at clicked line in backward list", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 10 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionBackward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Initially last item is selected in backward list
+		assert.Equal(t, 9, l.selectedItemIdx)
+
+		// Click on line 5 (should be Item 5 since all items fit)
+		execCmd(l, l.SelectItemAtLine(5))
+		assert.Equal(t, 5, l.selectedItemIdx)
+	})
+
+	t.Run("should handle multi-line items", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		// Create items with varying heights
+		items = append(items, NewSelectableItem("Item 0\nLine 2\nLine 3")) // Lines 0-2
+		items = append(items, NewSelectableItem("Item 1"))                 // Line 3
+		items = append(items, NewSelectableItem("Item 2\nLine 2"))         // Lines 4-5
+		items = append(items, NewSelectableItem("Item 3"))                 // Line 6
+
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Click on line 1 (within Item 0)
+		execCmd(l, l.SelectItemAtLine(1))
+		assert.Equal(t, 0, l.selectedItemIdx)
+
+		// Click on line 3 (Item 1)
+		execCmd(l, l.SelectItemAtLine(3))
+		assert.Equal(t, 1, l.selectedItemIdx)
+
+		// Click on line 5 (within Item 2)
+		execCmd(l, l.SelectItemAtLine(5))
+		assert.Equal(t, 2, l.selectedItemIdx)
+	})
+
+	t.Run("should not change selection when clicking same item", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 5 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Select item 2
+		execCmd(l, l.SelectItemAtLine(2))
+		assert.Equal(t, 2, l.selectedItemIdx)
+
+		// Click on same item again
+		cmd := l.SelectItemAtLine(2)
+		assert.Nil(t, cmd, "should return nil when clicking same item")
+		assert.Equal(t, 2, l.selectedItemIdx)
+	})
+
+	t.Run("should handle empty list", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		cmd := l.SelectItemAtLine(5)
+		assert.Nil(t, cmd, "should return nil for empty list")
+	})
+
+	t.Run("should handle scrolled list in forward direction", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 30 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Scroll down by 10 lines
+		execCmd(l, l.MoveDown(10))
+		assert.Equal(t, 10, l.offset)
+
+		// Click on viewport line 5 (should be Item 15 since offset is 10)
+		execCmd(l, l.SelectItemAtLine(5))
+		assert.Equal(t, 15, l.selectedItemIdx)
+	})
+}
+
+func TestInvalidateCache(t *testing.T) {
+	t.Parallel()
+
+	t.Run("should clear render cache and re-render", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 5 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Verify items are cached
+		assert.Equal(t, 5, len(l.renderedItems), "should have cached items")
+
+		// Invalidate cache
+		execCmd(l, l.InvalidateCache())
+
+		// Cache should be repopulated after re-render
+		assert.Equal(t, 5, len(l.renderedItems), "should have re-cached items")
+	})
+
+	t.Run("should preserve selection after cache invalidation", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 10 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Select item 5
+		execCmd(l, l.SelectItemAtLine(5))
+		assert.Equal(t, 5, l.selectedItemIdx)
+
+		// Invalidate cache
+		execCmd(l, l.InvalidateCache())
+
+		// Selection should be preserved
+		assert.Equal(t, 5, l.selectedItemIdx, "selection should be preserved")
+	})
+
+	t.Run("should preserve scroll position after cache invalidation", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{}
+		for i := range 30 {
+			item := NewSelectableItem(fmt.Sprintf("Item %d", i))
+			items = append(items, item)
+		}
+		l := New(items, WithDirectionForward(), WithSize(20, 10)).(*list[Item])
+		execCmd(l, l.Init())
+
+		// Scroll down
+		execCmd(l, l.MoveDown(15))
+		assert.Equal(t, 15, l.offset)
+
+		// Invalidate cache
+		execCmd(l, l.InvalidateCache())
+
+		// Scroll position should be preserved
+		assert.Equal(t, 15, l.offset, "scroll position should be preserved")
+	})
+}

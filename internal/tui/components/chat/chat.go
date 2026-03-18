@@ -203,6 +203,10 @@ func (m *messageListCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		m.listCmp = u.(list.List[list.Item])
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
+	case styles.ThemeChangedMsg:
+		// Invalidate the render cache so all messages re-render with new theme
+		cmds = append(cmds, m.listCmp.InvalidateCache())
+		return m, tea.Batch(cmds...)
 	}
 
 	u, cmd := m.listCmp.Update(msg)
@@ -710,8 +714,9 @@ func (m *messageListCmp) handleMouseClick(x, y int) tea.Cmd {
 
 	switch m.clickCount {
 	case 1:
-		// Single click - start selection
+		// Single click - start selection and focus the clicked message
 		m.listCmp.StartSelection(x, y)
+		return m.listCmp.SelectItemAtLine(y)
 	case 2:
 		// Double click - select word
 		m.listCmp.SelectWord(x, y)

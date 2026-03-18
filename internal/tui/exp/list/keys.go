@@ -21,19 +21,19 @@ func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		Down: key.NewBinding(
 			key.WithKeys("down", "ctrl+j", "ctrl+n", "j"),
-			key.WithHelp("↓", "down"),
+			key.WithHelp("↓/j", "next message"),
 		),
 		Up: key.NewBinding(
 			key.WithKeys("up", "ctrl+k", "ctrl+p", "k"),
-			key.WithHelp("↑", "up"),
+			key.WithHelp("↑/k", "prev message"),
 		),
 		UpOneItem: key.NewBinding(
 			key.WithKeys("shift+up", "K"),
-			key.WithHelp("shift+↑", "up one item"),
+			key.WithHelp("shift+↑", "scroll up"),
 		),
 		DownOneItem: key.NewBinding(
 			key.WithKeys("shift+down", "J"),
-			key.WithHelp("shift+↓", "down one item"),
+			key.WithHelp("shift+↓", "scroll down"),
 		),
 		HalfPageDown: key.NewBinding(
 			key.WithKeys("d"),

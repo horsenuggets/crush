@@ -74,6 +74,8 @@ type List[T Item] interface {
 	SelectParagraph(col, line int)
 	GetSelectedText(paddingLeft int) string
 	HasSelection() bool
+	SelectItemAtLine(line int) tea.Cmd
+	InvalidateCache() tea.Cmd
 }
 
 type direction int
@@ -87,8 +89,8 @@ const (
 	ItemNotFound = -1
 )
 
-// ScrollStep is the number of lines to scroll. Can be set from config.
-var ScrollStep = 2
+// ScrollStep is the number of lines to scroll per mouse wheel tick.
+var ScrollStep = 1
 
 type renderedItem struct {
 	view   string
@@ -288,13 +290,17 @@ func (l *list[T]) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		if l.focused {
 			switch {
 			case key.Matches(msg, l.keyMap.Down):
-				return l, l.MoveDown(ScrollStep)
-			case key.Matches(msg, l.keyMap.Up):
-				return l, l.MoveUp(ScrollStep)
-			case key.Matches(msg, l.keyMap.DownOneItem):
+				// Arrow keys jump between messages for faster navigation
 				return l, l.SelectItemBelow()
-			case key.Matches(msg, l.keyMap.UpOneItem):
+			case key.Matches(msg, l.keyMap.Up):
+				// Arrow keys jump between messages for faster navigation
 				return l, l.SelectItemAbove()
+			case key.Matches(msg, l.keyMap.DownOneItem):
+				// Shift+arrow scrolls by lines for fine control
+				return l, l.MoveDown(ScrollStep)
+			case key.Matches(msg, l.keyMap.UpOneItem):
+				// Shift+arrow scrolls by lines for fine control
+				return l, l.MoveUp(ScrollStep)
 			case key.Matches(msg, l.keyMap.HalfPageDown):
 				return l, l.MoveDown(l.height / 2)
 			case key.Matches(msg, l.keyMap.HalfPageUp):
@@ -1438,6 +1444,58 @@ func (l *list[T]) SelectedItem() *T {
 	return &item
 }
 
+// SelectItemAtLine selects the item at the given viewport line position.
+// This is used for click-to-focus functionality.
+func (l *list[T]) SelectItemAtLine(line int) tea.Cmd {
+	if len(l.items) == 0 {
+		return nil
+	}
+
+	// Convert viewport line to absolute line position
+	absoluteLine := line
+	numLines := l.lineCount()
+
+	if l.direction == DirectionBackward && numLines > l.height {
+		absoluteLine = (numLines - 1) - l.height + line + 1
+	}
+
+	if l.offset > 0 {
+		if l.direction == DirectionBackward {
+			absoluteLine -= l.offset
+		} else {
+			absoluteLine += l.offset
+		}
+	}
+
+	// Find which item contains this line
+	for i, item := range l.items {
+		rItem, ok := l.renderedItems[item.ID()]
+		if !ok {
+			continue
+		}
+
+		// Check if the line is within this item's range
+		if absoluteLine >= rItem.start && absoluteLine <= rItem.end {
+			// Check if item is focusable
+			if _, ok := any(item).(layout.Focusable); !ok {
+				continue
+			}
+
+			// Only change selection if different
+			if l.selectedItemIdx == i {
+				return nil
+			}
+
+			l.prevSelectedItemIdx = l.selectedItemIdx
+			l.selectedItemIdx = i
+			l.movingByItem = true
+			return l.render()
+		}
+	}
+
+	return nil
+}
+
 // SetItems implements List.
 func (l *list[T]) SetItems(items []T) tea.Cmd {
 	l.items = items
@@ -1461,6 +1519,40 @@ func (l *list[T]) SetSelected(id string) tea.Cmd {
 		l.selectedItemIdx = -1
 	}
 	return l.render()
+}
+
+// InvalidateCache clears the render cache and forces a re-render of all items.
+// This is useful when the theme changes and cached styled content is stale.
+// Preserves the current scroll position and selection.
+func (l *list[T]) InvalidateCache() tea.Cmd {
+	// Save current state
+	savedOffset := l.offset
+	savedSelection := l.selectedItemIdx
+
+	// Clear cache
+	l.renderedItems = make(map[string]renderedItem)
+	l.rendered = ""
+	l.renderedHeight = 0
+	l.cachedViewDirty = true
+
+	// Re-render
+	cmd := l.render()
+
+	// Restore scroll position (render may have reset it)
+	l.offset = savedOffset
+	l.selectedItemIdx = savedSelection
+
+	// Clamp offset to valid range
+	if l.renderedHeight > l.height {
+		maxOffset := l.renderedHeight - l.height
+		if l.offset > maxOffset {
+			l.offset = maxOffset
+		}
+	} else {
+		l.offset = 0
+	}
+
+	return cmd
 }
 
 func (l *list[T]) reset(selectedItemID string) tea.Cmd {
