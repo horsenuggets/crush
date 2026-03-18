@@ -65,11 +65,21 @@ func TestYourFunction(t *testing.T) {
 - Comments that live on their own lines should start with capital letters and
   end with periods. Wrap comments at 78 columns.
 
-## Committing
+## Commits
 
-- ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`, `docs:`, `sec:`, etc).
-- Try to keep commits to one line, not including your attribution. Only use
-  multi-line commits when additional context is truly necessary.
+- Use sentence case for commit messages (start with a capital letter)
+- Do NOT use conventional commit prefixes like `test:`, `chore:`, `feat:`, `fix:`, etc.
+- Always break commits down into logical parts
+- Explain the "why" not just the "what"
+- Be optimistic about committing - almost everything should be committed
+- Only skip files that are clearly not meant to be in the repo:
+  - Files containing hardcoded secrets or credentials
+  - Large binary files that were accidentally created
+  - Personal IDE settings that aren't already gitignored
+  - Build artifacts that should be gitignored
+- Do NOT push to remote unless explicitly asked
 
 ## Working on the TUI (UI)
-Anytime you need to work on the tui before starting work read the internal/ui/AGENTS.md file
+
+Anytime you need to work on the TUI, before starting work read the
+`internal/ui/AGENTS.md` file.

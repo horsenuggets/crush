@@ -47,8 +47,8 @@ const (
 
 	// Constants for auto-summarization thresholds
 	largeContextWindowThreshold = 200_000
-	largeContextWindowBuffer    = 20_000
-	smallContextWindowRatio     = 0.2
+	largeContextWindowBuffer    = 40_000  // Increased from 20k to prevent token overflow
+	smallContextWindowRatio     = 0.25    // Increased from 0.2 for earlier summarization
 )
 
 //go:embed templates/title.md

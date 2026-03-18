@@ -43,6 +43,20 @@ tasks:
     generates:
       - crush
 
+  build:safe:
+    desc: Build a versioned backup to builds/ directory (keeps last 10)
+    vars:
+      LDFLAGS: '{{if .VERSION}}-ldflags="-X github.com/charmbracelet/crush/internal/version.Version={{.VERSION}}"{{end}}'
+      TIMESTAMP:
+        sh: date +%Y.%m.%d_%H.%M.%S
+    cmds:
+      - mkdir -p builds
+      - "go build {{.LDFLAGS}} -o builds/crush_{{.TIMESTAMP}} ."
+      - rm -f builds/latest && ln -s crush_{{.TIMESTAMP}} builds/latest
+      - cd builds && ls -t crush_* 2>/dev/null | grep -v latest | tail -n +11 | xargs -r rm -f
+    generates:
+      - builds/crush_*
+
   run:
     desc: Run build
     cmds:

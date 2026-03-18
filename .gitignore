@@ -56,3 +56,6 @@ completions/crush.*sh
 .claude-context.md
 crush-test
 screenshots/
+
+# Versioned builds directory
+/builds/
