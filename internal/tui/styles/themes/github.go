@@ -12,10 +12,10 @@ var (
 	ghBgSubtle      = styles.ParseHex("#21262d")
 	ghBgOverlay     = styles.ParseHex("#30363d")
 
-	ghFgBase      = styles.ParseHex("#e6edf3")
+	ghFgBase      = styles.ParseHex("#D5DBE0")
 	ghFgMuted     = styles.ParseHex("#7d8590")
 	ghFgHalfMuted = styles.ParseHex("#8b949e")
-	ghFgSubtle    = styles.ParseHex("#6e7681")
+	ghFgSubtle    = styles.ParseHex("#555F69")
 	ghFgSelected  = styles.ParseHex("#ffffff")
 
 	ghBorder      = styles.ParseHex("#30363d")

@@ -30,14 +30,14 @@ func hsvColor(h, s, v float64) colorful.Color {
 
 // Static neutral colors (grayscale) - these don't animate for performance
 var (
-	chromaFgBase      = hsvColor(0, 0, 0.9)    // Near white
-	chromaFgMuted     = hsvColor(0, 0, 0.6)    // Medium gray
-	chromaFgHalfMuted = hsvColor(0, 0, 0.75)   // Light gray
-	chromaFgSubtle    = hsvColor(0, 0, 0.45)   // Dark gray
+	chromaFgBase      = hsvColor(0, 0, 0.9)              // Near white
+	chromaFgMuted     = hsvColor(0, 0, 0.6)              // Medium gray
+	chromaFgHalfMuted = hsvColor(0, 0, 0.75)             // Light gray
+	chromaFgSubtle    = hsvColor(0, 0, 0.45)             // Dark gray
 	chromaFgSelected  = colorful.Color{R: 0, G: 0, B: 0} // Pure black for contrast on light selection
-	chromaBgOverlay   = hsvColor(0, 0, 0.12)   // Dark gray overlay
-	chromaBorder      = hsvColor(0, 0, 0.25)   // Gray border
-	chromaSelection   = hsvColor(0, 0, 1.0)    // Bright white for selection
+	chromaBgOverlay   = hsvColor(0, 0, 0.12)             // Dark gray overlay
+	chromaBorder      = hsvColor(0, 0, 0.25)             // Gray border
+	chromaSelection   = hsvColor(0, 0, 1.0)              // Bright white for selection
 )
 
 // chromaColorFunc generates animated rainbow colors based on hue offset.
@@ -107,11 +107,11 @@ func chromaStyleBuilder(t *styles.Theme, hueOffset float64) {
 	t.HelpStyles = help.Styles{
 		ShortKey:       base.Foreground(pastel),
 		ShortDesc:      base.Foreground(wrap(chromaFgMuted)),
-		ShortSeparator: base.Foreground(wrap(chromaFgSubtle)),
-		Ellipsis:       base.Foreground(wrap(chromaFgSubtle)),
+		ShortSeparator: base.Foreground(wrap(chromaBorder)),
+		Ellipsis:       base.Foreground(wrap(chromaBorder)),
 		FullKey:        base.Foreground(pastel),
 		FullDesc:       base.Foreground(wrap(chromaFgMuted)),
-		FullSeparator:  base.Foreground(wrap(chromaFgSubtle)),
+		FullSeparator:  base.Foreground(wrap(chromaBorder)),
 	}
 }
 
@@ -151,8 +151,8 @@ func NewChromaTheme() *styles.Theme {
 		FgMuted:     wrap(chromaFgMuted),     // Medium gray
 		FgHalfMuted: wrap(chromaFgHalfMuted), // Light gray
 		FgSubtle:    wrap(chromaFgSubtle),    // Dark gray
-		FgSelected: wrap(chromaFgSelected),
-		FgCursor:   wrap(chromaFgBase), // Neutral white cursor (not animated)
+		FgSelected:  wrap(chromaFgSelected),
+		FgCursor:    wrap(chromaFgBase), // Neutral white cursor (not animated)
 
 		// Borders
 		Border:      wrap(chromaBorder),

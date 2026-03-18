@@ -15,7 +15,7 @@ var (
 	hackerFgBase      = styles.ParseHex("#00ff41") // Matrix green
 	hackerFgMuted     = styles.ParseHex("#00b432") // Darker green
 	hackerFgHalfMuted = styles.ParseHex("#00c837") // Medium green
-	hackerFgSubtle    = styles.ParseHex("#008c28") // Subtle green
+	hackerFgSubtle    = styles.ParseHex("#005019") // Subtle green
 	hackerFgSelected  = styles.ParseHex("#000000") // Black for contrast on green selection
 
 	hackerBorder      = styles.ParseHex("#005019") // Dark green border
@@ -69,7 +69,7 @@ func NewHackerTheme() *styles.Theme {
 		FgMuted:     hackerFgMuted,
 		FgHalfMuted: hackerFgHalfMuted,
 		FgSubtle:    hackerFgSubtle,
-		FgSelected: hackerFgSelected,
+		FgSelected:  hackerFgSelected,
 
 		Border:      hackerBorder,
 		BorderFocus: hackerBorderFocus,

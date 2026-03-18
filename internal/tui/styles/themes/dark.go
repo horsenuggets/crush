@@ -22,8 +22,8 @@ var (
 
 	// Accent colors
 	darkPrimary   = styles.ParseHex("#00A4FF") // Malibu
-	darkSecondary = styles.ParseHex("#00A4FF") // Malibu
-	darkTertiary  = styles.ParseHex("#DFDBDD") // Ash
+	darkSecondary = styles.ParseHex("#858392") // Squid
+	darkTertiary  = styles.ParseHex("#BFBCC8") // Smoke
 	darkAccent    = styles.ParseHex("#00A4FF") // Malibu
 
 	// Status colors
@@ -74,7 +74,7 @@ func NewDarkTheme() *styles.Theme {
 		FgMuted:     darkFgMuted,
 		FgHalfMuted: darkFgHalfMuted,
 		FgSubtle:    darkFgSubtle,
-		FgSelected: darkBgBase,
+		FgSelected:  darkBgBase,
 
 		// Borders
 		Border:      darkBorder,

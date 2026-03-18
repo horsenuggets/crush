@@ -18,14 +18,15 @@ var (
 	solBase3  = styles.ParseHex("#fdf6e3") // bg (light)
 
 	// Accent colors
-	solYellow  = styles.ParseHex("#b58900")
-	solOrange  = styles.ParseHex("#cb4b16")
-	solRed     = styles.ParseHex("#dc322f")
-	solMagenta = styles.ParseHex("#d33682")
-	solViolet  = styles.ParseHex("#6c71c4")
-	solBlue    = styles.ParseHex("#268bd2")
-	solCyan    = styles.ParseHex("#2aa198")
-	solGreen   = styles.ParseHex("#859900")
+	solYellow    = styles.ParseHex("#b58900")
+	solOrange    = styles.ParseHex("#cb4b16")
+	solRed       = styles.ParseHex("#dc322f")
+	solMagenta   = styles.ParseHex("#d33682")
+	solViolet    = styles.ParseHex("#6c71c4")
+	solBlue      = styles.ParseHex("#268bd2")
+	solCyan      = styles.ParseHex("#2aa198")
+	solGreen     = styles.ParseHex("#A2BB00")
+	solGreenDark = styles.ParseHex("#859900")
 )
 
 // NewSolarizedTheme creates the classic Solarized Dark theme.
@@ -45,10 +46,10 @@ func NewSolarizedTheme() *styles.Theme {
 		BgOverlay:     solBase01,
 
 		FgBase:      solBase0,
-		FgMuted:     solBase01,
-		FgHalfMuted: solBase00,
+		FgMuted:     solBase1,
+		FgHalfMuted: solBase01,
 		FgSubtle:    solBase01,
-		FgSelected: solBase3,
+		FgSelected:  solBase3,
 
 		Border:      solBase02,
 		BorderFocus: solBlue,
@@ -67,7 +68,7 @@ func NewSolarizedTheme() *styles.Theme {
 		Citron: solOrange,
 
 		Green:      solGreen,
-		GreenDark:  solCyan,
+		GreenDark:  solGreenDark,
 		GreenLight: solGreen,
 
 		Red:      solRed,

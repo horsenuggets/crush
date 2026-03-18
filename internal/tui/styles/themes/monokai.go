@@ -18,9 +18,11 @@ var (
 	monokaiUIButton = styles.ParseHex("#BEBEAC") // Button highlight
 	monokaiUIBorder = styles.ParseHex("#6a6a5c") // Focused border - visible brown
 
-	monokaiFg        = styles.ParseHex("#f8f8f2") // white
-	monokaiComment   = styles.ParseHex("#75715e")
-	monokaiFgHalf    = styles.ParseHex("#969282")
+	monokaiFg      = styles.ParseHex("#CDCDC7")
+	monokaiComment = styles.ParseHex("#75715e")
+	monokaiMuted   = styles.ParseHex("#8F8A73")
+	monokaiSubtle  = styles.ParseHex("#5E5B4C")
+	monokaiFgHalf  = styles.ParseHex("#969282")
 
 	// Syntax colors (for code highlighting only)
 	monokaiRed       = styles.ParseHex("#f92672") // pink/red
@@ -42,8 +44,8 @@ func NewMonokaiTheme() *styles.Theme {
 		IsDark: true,
 
 		// UI colors use brown tones, not syntax colors
-		Primary:   monokaiUISelect, // Selection bar - lighter brown
-		Secondary: monokaiUIButton, // Buttons - medium brown
+		Primary:   monokaiUIButton,
+		Secondary: monokaiUISelect,
 		Tertiary:  monokaiComment,
 		Accent:    monokaiUIBorder,
 
@@ -53,10 +55,10 @@ func NewMonokaiTheme() *styles.Theme {
 		BgOverlay:     monokaiBgOverlay,
 
 		FgBase:      monokaiFg,
-		FgMuted:     monokaiComment,
+		FgMuted:     monokaiMuted,
 		FgHalfMuted: monokaiFgHalf,
-		FgSubtle:    monokaiComment,
-		FgSelected: monokaiBg, // Dark text on brown selection bar
+		FgSubtle:    monokaiSubtle,
+		FgSelected:  monokaiBg,
 
 		Border:      monokaiBgSubtle,
 		BorderFocus: monokaiUIBorder, // Brown border, not cyan

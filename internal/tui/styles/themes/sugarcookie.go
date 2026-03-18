@@ -12,10 +12,10 @@ var (
 	sugarBgSubtle      = styles.ParseHex("#fcf0f8") // Very light pink
 	sugarBgOverlay     = styles.ParseHex("#f5e1ee") // Light pink overlay
 
-	sugarFgBase      = styles.ParseHex("#503250") // Dark purple-gray
+	sugarFgBase      = styles.ParseHex("#4F304F") // Darker purple-gray (more readable)
 	sugarFgMuted     = styles.ParseHex("#8c6e8c") // Muted purple
 	sugarFgHalfMuted = styles.ParseHex("#785578") // Medium purple
-	sugarFgSubtle    = styles.ParseHex("#b496b4") // Subtle purple
+	sugarFgSubtle    = styles.ParseHex("#d0b8d0") // Lighter purple for placeholders
 	sugarFgSelected  = styles.ParseHex("#ffffff") // White for selection
 
 	sugarBorder      = styles.ParseHex("#ebd2e6") // Light pink border
@@ -71,7 +71,7 @@ func NewSugarcookieTheme() *styles.Theme {
 		FgMuted:     sugarFgMuted,
 		FgHalfMuted: sugarFgHalfMuted,
 		FgSubtle:    sugarFgSubtle,
-		FgSelected: sugarFgSelected,
+		FgSelected:  sugarFgSelected,
 
 		// Borders
 		Border:      sugarBorder,
@@ -93,8 +93,8 @@ func NewSugarcookieTheme() *styles.Theme {
 		Yellow: sugarYellow,
 		Citron: sugarCitron,
 
-		Green:      sugarGreen,
-		GreenDark:  sugarGreenDark,
+		Green:      sugarGreenDark,
+		GreenDark:  sugarGreen,
 		GreenLight: sugarGreenLight,
 
 		Red:      sugarRed,

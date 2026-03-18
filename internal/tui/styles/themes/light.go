@@ -12,10 +12,10 @@ var (
 	lightBgSubtle      = styles.ParseHex("#f3f4f6") // Very light gray
 	lightBgOverlay     = styles.ParseHex("#e5e7eb") // Light gray
 
-	lightFgBase      = styles.ParseHex("#1f2937") // Dark gray (not pure black)
+	lightFgBase      = styles.ParseHex("#343841") // Dark gray (more readable)
 	lightFgMuted     = styles.ParseHex("#6b7280") // Medium gray
 	lightFgHalfMuted = styles.ParseHex("#4b5563") // Darker gray
-	lightFgSubtle    = styles.ParseHex("#9ca3af") // Light gray text
+	lightFgSubtle    = styles.ParseHex("#c0c7d0") // Lighter gray for placeholders
 	lightFgSelected  = styles.ParseHex("#ffffff") // White for selection
 
 	lightBorder      = styles.ParseHex("#e5e7eb") // Light border
@@ -93,8 +93,8 @@ func NewLightTheme() *styles.Theme {
 		Yellow: lightYellow,
 		Citron: lightCitron,
 
-		Green:      lightGreen,
-		GreenDark:  lightGreenDark,
+		Green:      lightGreenDark,
+		GreenDark:  lightGreen,
 		GreenLight: lightGreenLight,
 
 		Red:      lightRed,
