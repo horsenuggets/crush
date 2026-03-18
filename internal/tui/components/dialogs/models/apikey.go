@@ -43,6 +43,7 @@ func NewAPIKeyInput() *APIKeyInput {
 	ti.Placeholder = "Enter your API key..."
 	ti.SetVirtualCursor(false)
 	ti.Prompt = "> "
+	ti.EchoMode = textinput.EchoPassword // Mask API key with asterisks
 	ti.SetStyles(t.S().TextInput)
 	ti.Focus()
 

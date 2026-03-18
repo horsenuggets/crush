@@ -112,8 +112,9 @@ func (r *Recorder) startWithFFmpeg(ctx context.Context) error {
 		// BSD/Solaris
 		inputArgs = []string{"-f", "oss", "-i", "/dev/audio"}
 	default:
-		// macOS
-		inputArgs = []string{"-f", "avfoundation", "-i", ":0"}
+		// macOS - use "default" to pick system default input, not hardcoded index
+		// Index :0 may pick the wrong device (e.g., iPhone instead of MacBook mic)
+		inputArgs = []string{"-f", "avfoundation", "-i", ":default"}
 	}
 
 	args := append(inputArgs,

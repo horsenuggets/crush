@@ -9,7 +9,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/charmbracelet/crush/internal/config"
 )
 
 const whisperAPIURL = "https://api.openai.com/v1/audio/transcriptions"
@@ -55,9 +58,25 @@ func NewWhisperClient(apiKey string) (*WhisperClient, error) {
 	}, nil
 }
 
+// MinAudioDuration is the minimum recording duration to avoid hallucinations.
+const MinAudioDuration = 100 * time.Millisecond
+
+// MinAudioFileSize is the minimum file size for a valid recording (16kHz mono 16-bit = 32KB/sec).
+// 100ms of audio = ~3.2KB minimum.
+const MinAudioFileSize = 3200
+
 // TranscribeFile transcribes an audio file using the Whisper API.
 // dynamicContext is optional session-specific terms to improve transcription accuracy.
 func (c *WhisperClient) TranscribeFile(ctx context.Context, audioPath string, dynamicContext string) (string, error) {
+	// Check file size to reject very short/empty recordings
+	fileInfo, err := os.Stat(audioPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat audio file: %w", err)
+	}
+	if fileInfo.Size() < MinAudioFileSize {
+		return "", fmt.Errorf("recording too short (less than 100ms)")
+	}
+
 	file, err := os.Open(audioPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open audio file: %w", err)
@@ -67,16 +86,60 @@ func (c *WhisperClient) TranscribeFile(ctx context.Context, audioPath string, dy
 	return c.TranscribeReader(ctx, file, audioPath, dynamicContext)
 }
 
+// loadContextVocabulary loads additional vocabulary from the configured context file.
+func loadContextVocabulary() string {
+	cfg := config.Get()
+	if cfg.Options == nil || cfg.Options.TUI == nil || cfg.Options.TUI.Voice == nil {
+		return ""
+	}
+	contextFile := cfg.Options.TUI.Voice.ContextFile
+	if contextFile == "" {
+		return ""
+	}
+	// Expand ~ if present
+	if strings.HasPrefix(contextFile, "~/") {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			contextFile = strings.Replace(contextFile, "~", home, 1)
+		}
+	}
+	content, err := os.ReadFile(contextFile)
+	if err != nil {
+		return ""
+	}
+	// Read file line by line and join with commas
+	lines := strings.Split(string(content), "\n")
+	var terms []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		terms = append(terms, line)
+	}
+	return strings.Join(terms, ", ")
+}
+
 // TranscribeReader transcribes audio from an io.Reader using the Whisper API.
 func (c *WhisperClient) TranscribeReader(ctx context.Context, audio io.Reader, filename string, dynamicContext string) (string, error) {
-	// Build the prompt
+	// Build the prompt with base vocabulary
 	prompt := BasePrompt
+
+	// Add vocabulary from context file if configured
+	contextVocab := loadContextVocabulary()
+	if contextVocab != "" {
+		prompt = fmt.Sprintf("%s, %s", prompt, contextVocab)
+	}
+
+	// Add dynamic context from the session
 	if dynamicContext != "" {
-		prompt = fmt.Sprintf("%s, %s", BasePrompt, dynamicContext)
-		// Truncate if too long (Whisper prompt limit is ~224 tokens)
-		if len(prompt) > 400 {
-			prompt = prompt[:400]
-		}
+		prompt = fmt.Sprintf("%s, %s", prompt, dynamicContext)
+	}
+
+	// Truncate if too long (Whisper prompt limit is ~224 tokens)
+	if len(prompt) > 400 {
+		prompt = prompt[:400]
 	}
 
 	// Create multipart form
@@ -100,6 +163,11 @@ func (c *WhisperClient) TranscribeReader(ctx context.Context, audio io.Reader, f
 	// Add language
 	if err := writer.WriteField("language", "en"); err != nil {
 		return "", fmt.Errorf("failed to write language field: %w", err)
+	}
+
+	// Add temperature=0 for deterministic output (reduces hallucination)
+	if err := writer.WriteField("temperature", "0"); err != nil {
+		return "", fmt.Errorf("failed to write temperature field: %w", err)
 	}
 
 	// Add prompt
@@ -146,5 +214,68 @@ func (c *WhisperClient) TranscribeReader(ctx context.Context, audio io.Reader, f
 		return "", fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	// Check for common hallucination patterns
+	if isLikelyHallucination(result.Text) {
+		return "", nil // Return empty string instead of hallucinated text
+	}
+
 	return result.Text, nil
+}
+
+// commonHallucinations contains phrases commonly hallucinated by Whisper
+// when processing silence, background noise, or very short audio.
+var commonHallucinations = []string{
+	"thank you for watching",
+	"thanks for watching",
+	"please subscribe",
+	"like and subscribe",
+	"see you in the next",
+	"don't forget to",
+	"comment below",
+	"hit the bell",
+	"notification",
+	"subtitles by",
+	"captions by",
+	"transcribed by",
+	"music playing",
+	"[music]",
+	"[applause]",
+	"[laughter]",
+	"you",
+	"bye",
+	"bye.",
+	"goodbye",
+	"goodbye.",
+}
+
+// isLikelyHallucination checks if the transcription is likely a hallucination.
+func isLikelyHallucination(text string) bool {
+	text = strings.ToLower(strings.TrimSpace(text))
+
+	// Empty or very short text
+	if len(text) < 2 {
+		return true
+	}
+
+	// Check for common hallucination patterns
+	for _, pattern := range commonHallucinations {
+		if strings.Contains(text, pattern) {
+			return true
+		}
+	}
+
+	// Single-word responses that are common hallucinations
+	words := strings.Fields(text)
+	if len(words) == 1 {
+		singleWord := strings.ToLower(words[0])
+		// Common single-word hallucinations
+		if singleWord == "you" || singleWord == "bye" || singleWord == "goodbye" ||
+			singleWord == "thanks" || singleWord == "okay" || singleWord == "yes" ||
+			singleWord == "no" || singleWord == "um" || singleWord == "uh" ||
+			singleWord == "hmm" || singleWord == "ah" {
+			return true
+		}
+	}
+
+	return false
 }
