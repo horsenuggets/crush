@@ -29,10 +29,12 @@ import (
 	"github.com/charmbracelet/crush/internal/tui/components/chat"
 	"github.com/charmbracelet/crush/internal/tui/components/completions"
 	"github.com/charmbracelet/crush/internal/tui/components/core/layout"
+	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/commands"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/filepicker"
 	"github.com/charmbracelet/crush/internal/tui/components/dialogs/quit"
+	voicedialog "github.com/charmbracelet/crush/internal/tui/components/dialogs/voice"
 	"github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/tui/util"
 	"github.com/charmbracelet/crush/internal/voice"
@@ -53,6 +55,15 @@ var (
 	yoloLastHue    float64
 )
 
+// resetYoloColorCache clears the yolo color cache, used when theme changes
+func resetYoloColorCache() {
+	yoloColorMu.Lock()
+	defer yoloColorMu.Unlock()
+	yoloLastAccent = nil
+	yoloLastBgBase = nil
+	yoloLastHue = 0
+}
+
 // If pasted text has more than 10 newlines, treat it as a file attachment.
 const pasteLinesThreshold = 10
 
@@ -68,6 +79,7 @@ type Editor interface {
 	HasAttachments() bool
 	IsEmpty() bool
 	Cursor() *tea.Cursor
+	DesiredHeight() int
 }
 
 type FileCompletionItem struct {
@@ -94,8 +106,9 @@ type editorCmp struct {
 	isCompletionsOpen     bool
 
 	// Voice input
-	voiceInput    *voice.VoiceInput
-	voiceRecoding bool
+	voiceInput       *voice.VoiceInput
+	voiceRecoding    bool
+	voiceTranscribing bool
 }
 
 var DeleteKeyMaps = DeleteAttachmentKeyMaps{
@@ -221,6 +234,18 @@ func (m *editorCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		return m, m.repositionCompletions
+	case styles.ThemeChangedMsg:
+		// Update textarea styles when theme changes
+		t := styles.CurrentTheme()
+		m.textarea.SetStyles(t.S().TextArea)
+		// Reset yolo color cache so it syncs with new theme animation
+		resetYoloColorCache()
+		// Blur and refocus to fully reset cursor state after style update
+		if m.textarea.Focused() {
+			m.textarea.Blur()
+			return m, m.textarea.Focus()
+		}
+		return m, nil
 	case filepicker.FilePickedMsg:
 		m.attachments = append(m.attachments, msg.Attachment)
 		return m, nil
@@ -293,10 +318,15 @@ func (m *editorCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 			slog.Debug("Text inserted into textarea", "newValue", m.textarea.Value())
 		}
 		m.voiceRecoding = false
+		m.voiceTranscribing = false
 		return m, nil
 	case VoiceErrorMsg:
 		m.voiceRecoding = false
+		m.voiceTranscribing = false
 		return m, util.ReportError(msg.Error)
+	case voicedialog.VoiceAPIKeySetMsg:
+		// API key was set, try to start recording
+		return m, m.toggleVoiceRecording()
 	case tea.PasteMsg:
 		if strings.Count(msg.Content, "\n") > pasteLinesThreshold {
 			content := []byte(msg.Content)
@@ -352,7 +382,7 @@ func (m *editorCmp) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		// Open command palette when "/" is pressed on empty prompt
 		case msg.String() == "/" && m.IsEmpty():
 			return m, util.CmdHandler(dialogs.OpenDialogMsg{
-				Model: commands.NewCommandDialog(m.session.ID),
+				Model: commands.NewCommandDialog(m.session.ID, m.session.Title),
 			})
 		// Completions
 		case msg.String() == "@" && !m.isCompletionsOpen &&
@@ -594,26 +624,58 @@ func (m *editorCmp) View() string {
 	t := styles.CurrentTheme()
 	// Update placeholder
 	if m.voiceRecoding {
-		m.textarea.Placeholder = "Recording... (Ctrl+U to stop)"
+		m.textarea.Placeholder = "🎤 Recording... (Ctrl+Y to stop)"
+	} else if m.voiceTranscribing {
+		m.textarea.Placeholder = "🔄 Transcribing..."
 	} else if m.app.AgentCoordinator != nil && m.app.AgentCoordinator.IsBusy() {
 		m.textarea.Placeholder = m.workingPlaceholder
 	} else {
 		m.textarea.Placeholder = m.readyPlaceholder
 	}
-	if m.app.Permissions.SkipRequests() && !m.voiceRecoding {
+	if m.app.Permissions.SkipRequests() && !m.voiceRecoding && !m.voiceTranscribing {
 		m.textarea.Placeholder = "Yolo mode!"
 	}
-	if len(m.attachments) == 0 {
+
+	// Build view components
+	var components []string
+
+	// Add recording indicator bar when recording
+	if m.voiceRecoding {
+		recordingBar := t.S().Base.
+			Background(t.Red).
+			Foreground(t.White).
+			Bold(true).
+			Width(m.width - 2).
+			Align(lipgloss.Center).
+			Render("● RECORDING - Press Ctrl+Y to stop")
+		components = append(components, recordingBar)
+	} else if m.voiceTranscribing {
+		transcribingBar := t.S().Base.
+			Background(t.Yellow).
+			Foreground(t.BgBase).
+			Bold(true).
+			Width(m.width - 2).
+			Align(lipgloss.Center).
+			Render("◌ TRANSCRIBING...")
+		components = append(components, transcribingBar)
+	}
+
+	// Add attachments if any
+	if len(m.attachments) > 0 {
+		components = append(components, m.attachmentsContent())
+	}
+
+	// Add textarea
+	components = append(components, m.textarea.View())
+
+	// Render with appropriate padding
+	if len(m.attachments) == 0 && !m.voiceRecoding && !m.voiceTranscribing {
 		return t.S().Base.Padding(1).Render(
 			m.textarea.View(),
 		)
 	}
 	return t.S().Base.Padding(0, 1, 1, 1).Render(
-		lipgloss.JoinVertical(
-			lipgloss.Top,
-			m.attachmentsContent(),
-			m.textarea.View(),
-		),
+		lipgloss.JoinVertical(lipgloss.Top, components...),
 	)
 }
 
@@ -650,6 +712,10 @@ func (m *editorCmp) attachmentsContent() string {
 		Background(t.Red).
 		Foreground(t.FgBase).
 		Render
+	hintStyle := t.S().Base.
+		Foreground(t.FgSubtle).
+		Render
+
 	for i, attachment := range m.attachments {
 		filename := ansi.Truncate(filepath.Base(attachment.FileName), 10, "...")
 		icon := styles.ImageIcon
@@ -670,6 +736,14 @@ func (m *editorCmp) attachmentsContent() string {
 			attachmentStyle(filename),
 		)
 	}
+
+	// Add removal hint when in delete mode or when there are attachments
+	if m.deleteMode {
+		styledAttachments = append(styledAttachments, hintStyle("  press number to remove, r for all, esc to cancel"))
+	} else if len(m.attachments) > 0 {
+		styledAttachments = append(styledAttachments, hintStyle("  ctrl+r to remove"))
+	}
+
 	return lipgloss.JoinHorizontal(lipgloss.Left, styledAttachments...)
 }
 
@@ -744,18 +818,44 @@ func (c *editorCmp) IsEmpty() bool {
 	return strings.TrimSpace(c.textarea.Value()) == ""
 }
 
+// DesiredHeight returns the height the editor wants based on content.
+// Minimum 5 lines (3 visible + 2 padding), maximum 14 lines (12 visible + 2 padding).
+func (c *editorCmp) DesiredHeight() int {
+	const (
+		minHeight     = 5  // 3 visible lines + 2 padding
+		maxHeight     = 14 // 12 visible lines + 2 padding
+		paddingLines  = 2
+		attachmentRow = 1
+	)
+
+	lineCount := c.textarea.LineCount()
+	if lineCount < 1 {
+		lineCount = 1
+	}
+
+	// Add space for attachments if present
+	attachmentHeight := 0
+	if len(c.attachments) > 0 {
+		attachmentHeight = attachmentRow
+	}
+
+	desired := lineCount + paddingLines + attachmentHeight
+	if desired < minHeight {
+		return minHeight
+	}
+	if desired > maxHeight {
+		return maxHeight
+	}
+	return desired
+}
+
 func normalPromptFunc(info textarea.PromptInfo) string {
 	t := styles.CurrentTheme()
-	if info.LineNumber == 0 {
-		if info.Focused {
-			return "  > "
-		}
-		return "::: "
+	style := t.S().Base.Foreground(t.Tertiary)
+	if info.LineNumber == 0 && info.Focused {
+		return style.Render("  > ")
 	}
-	if info.Focused {
-		return t.S().Base.Foreground(t.GreenDark).Render("::: ")
-	}
-	return t.S().Muted.Render("::: ")
+	return style.Render("::: ")
 }
 
 // getYoloColors returns validated accent and bgBase colors for the yolo indicator.
@@ -863,6 +963,12 @@ func New(app *app.App) Editor {
 	ta.CharLimit = -1
 	ta.SetVirtualCursor(false)
 	ta.Focus()
+
+	// Customize textarea keymap to add super+backspace for delete line
+	km := ta.KeyMap
+	km.DeleteBeforeCursor.SetKeys("ctrl+u", "super+backspace")
+	ta.KeyMap = km
+
 	e := &editorCmp{
 		// TODO: remove the app instance from here
 		app:      app,
@@ -913,13 +1019,34 @@ func mimeOf(content []byte) string {
 	return http.DetectContentType(content[:mimeBufferSize])
 }
 
+// getVoiceAPIKey returns the OpenAI API key for voice input.
+// It checks the config first, then falls back to the environment variable.
+func (m *editorCmp) getVoiceAPIKey() string {
+	cfg := config.Get()
+	if cfg.Options != nil && cfg.Options.TUI != nil && cfg.Options.TUI.Voice != nil {
+		if key := cfg.Options.TUI.Voice.APIKey; key != "" {
+			return key
+		}
+	}
+	return os.Getenv("OPENAI_API_KEY")
+}
+
 // toggleVoiceRecording starts or stops voice recording.
 func (m *editorCmp) toggleVoiceRecording() tea.Cmd {
 	slog.Debug("toggleVoiceRecording called", "isRecording", m.voiceRecoding)
 
 	// Initialize voice input if not already done
 	if m.voiceInput == nil {
-		vi, err := voice.New("")
+		apiKey := m.getVoiceAPIKey()
+		if apiKey == "" {
+			// No API key found, show the dialog to collect it
+			slog.Debug("No OpenAI API key found, showing dialog")
+			return util.CmdHandler(dialogs.OpenDialogMsg{
+				Model: voicedialog.NewVoiceDialog(),
+			})
+		}
+
+		vi, err := voice.New(apiKey)
 		if err != nil {
 			slog.Debug("Voice input not available", "error", err)
 			return util.ReportWarn("Voice input not available: " + err.Error())
@@ -932,20 +1059,22 @@ func (m *editorCmp) toggleVoiceRecording() tea.Cmd {
 		// Stop recording and transcribe
 		slog.Debug("Stopping recording and starting transcription")
 		m.voiceRecoding = false
-		return tea.Sequence(
-			util.CmdHandler(util.InfoMsg{Msg: "Transcribing...", Type: util.InfoTypeInfo}),
-			func() tea.Msg {
-				ctx := context.Background()
-				slog.Debug("Calling StopRecording")
-				text, err := m.voiceInput.StopRecording(ctx, "")
-				if err != nil {
-					slog.Debug("Voice transcription error", "error", err)
-					return VoiceErrorMsg{Error: err}
-				}
-				slog.Debug("Voice transcription complete", "text", text, "length", len(text))
-				return VoiceTranscriptionMsg{Text: text}
-			},
-		)
+		m.voiceTranscribing = true
+
+		// Build dynamic context from session and attachments
+		dynamicContext := m.buildVoiceContext()
+
+		return func() tea.Msg {
+			ctx := context.Background()
+			slog.Debug("Calling StopRecording", "dynamicContext", dynamicContext)
+			text, err := m.voiceInput.StopRecording(ctx, dynamicContext)
+			if err != nil {
+				slog.Debug("Voice transcription error", "error", err)
+				return VoiceErrorMsg{Error: err}
+			}
+			slog.Debug("Voice transcription complete", "text", text, "length", len(text))
+			return VoiceTranscriptionMsg{Text: text}
+		}
 	}
 
 	// Start recording
@@ -957,5 +1086,64 @@ func (m *editorCmp) toggleVoiceRecording() tea.Cmd {
 	}
 	m.voiceRecoding = true
 	slog.Debug("Recording started successfully")
-	return util.ReportInfo("Recording... Press Ctrl+U to stop")
+	return util.ReportInfo("Recording... Press Ctrl+Y to stop")
+}
+
+// buildVoiceContext creates dynamic context for voice transcription
+// based on the current session state (attachments, session title).
+func (m *editorCmp) buildVoiceContext() string {
+	var terms []string
+
+	// Add session title if meaningful (not default "New Session")
+	if m.session.Title != "" && m.session.Title != "New Session" {
+		// Extract meaningful words from the title
+		words := strings.Fields(m.session.Title)
+		for _, w := range words {
+			// Skip short words and common words
+			if len(w) > 3 {
+				terms = append(terms, w)
+			}
+		}
+	}
+
+	// Add attachment file names (without extensions for better recognition)
+	for _, att := range m.attachments {
+		name := att.FileName
+		// Remove common extensions
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+		// Split camelCase and snake_case
+		name = strings.ReplaceAll(name, "_", " ")
+		name = strings.ReplaceAll(name, "-", " ")
+		words := strings.Fields(name)
+		for _, w := range words {
+			if len(w) > 2 {
+				terms = append(terms, w)
+			}
+		}
+	}
+
+	// Add working directory name as context
+	if cfg := config.Get(); cfg != nil {
+		dir := filepath.Base(cfg.WorkingDir())
+		if dir != "" && dir != "." {
+			terms = append(terms, dir)
+		}
+	}
+
+	if len(terms) == 0 {
+		return ""
+	}
+
+	// Deduplicate terms
+	seen := make(map[string]bool)
+	var unique []string
+	for _, t := range terms {
+		lower := strings.ToLower(t)
+		if !seen[lower] {
+			seen[lower] = true
+			unique = append(unique, t)
+		}
+	}
+
+	return strings.Join(unique, ", ")
 }

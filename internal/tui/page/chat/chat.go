@@ -72,7 +72,8 @@ const (
 const (
 	CompactModeWidthBreakpoint  = 120 // Width at which the chat page switches to compact mode
 	CompactModeHeightBreakpoint = 30  // Height at which the chat page switches to compact mode
-	EditorHeight                = 5   // Height of the editor input area including padding
+	MinEditorHeight             = 5   // Minimum height of the editor input area including padding
+	MaxEditorHeight             = 14  // Maximum height of the editor input area including padding
 	SideBarWidth                = 31  // Width of the sidebar
 	SideBarDetailsPadding       = 1   // Padding for the sidebar details section
 	HeaderHeight                = 1   // Height of the header
@@ -129,6 +130,7 @@ type chatPage struct {
 	isOnboarding     bool
 	isProjectInit    bool
 	promptQueue      int
+	lastEditorHeight int
 
 	// Pills state
 	pillsExpanded      bool
@@ -332,6 +334,9 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 		u, cmd = p.chat.Update(msg)
 		p.chat = u.(chat.MessageListCmp)
 		cmds = append(cmds, cmd)
+		u, cmd = p.editor.Update(msg)
+		p.editor = u.(editor.Editor)
+		cmds = append(cmds, cmd)
 		return p, tea.Batch(cmds...)
 	case commands.OpenExternalEditorMsg:
 		u, cmd := p.editor.Update(msg)
@@ -533,6 +538,10 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 			u, cmd := p.editor.Update(msg)
 			p.editor = u.(editor.Editor)
 			cmds = append(cmds, cmd)
+			// Check if editor height changed and resize if needed
+			if resizeCmd := p.checkEditorResize(); resizeCmd != nil {
+				cmds = append(cmds, resizeCmd)
+			}
 		case PanelTypeSplash:
 			u, cmd := p.splash.Update(msg)
 			p.splash = u.(splash.Splash)
@@ -544,6 +553,10 @@ func (p *chatPage) Update(msg tea.Msg) (util.Model, tea.Cmd) {
 			u, cmd := p.editor.Update(msg)
 			p.editor = u.(editor.Editor)
 			cmds = append(cmds, cmd)
+			// Check if editor height changed and resize if needed
+			if resizeCmd := p.checkEditorResize(); resizeCmd != nil {
+				cmds = append(cmds, resizeCmd)
+			}
 			return p, tea.Batch(cmds...)
 		case PanelTypeChat:
 			u, cmd := p.chat.Update(msg)
@@ -865,19 +878,33 @@ func (p *chatPage) handleCompactMode(newWidth int, newHeight int) {
 	}
 }
 
+// checkEditorResize checks if the editor's desired height has changed and triggers a resize if needed.
+func (p *chatPage) checkEditorResize() tea.Cmd {
+	newHeight := p.editor.DesiredHeight()
+	if newHeight != p.lastEditorHeight {
+		p.lastEditorHeight = newHeight
+		return p.SetSize(p.width, p.height)
+	}
+	return nil
+}
+
 func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	p.handleCompactMode(width, height)
 	p.width = width
 	p.height = height
 	var cmds []tea.Cmd
 
+	// Get dynamic editor height based on content
+	editorHeight := p.editor.DesiredHeight()
+	p.lastEditorHeight = editorHeight
+
 	if p.session.ID == "" {
 		if p.splashFullScreen {
 			cmds = append(cmds, p.splash.SetSize(width, height))
 		} else {
-			cmds = append(cmds, p.splash.SetSize(width, height-EditorHeight))
-			cmds = append(cmds, p.editor.SetSize(width, EditorHeight))
-			cmds = append(cmds, p.editor.SetPosition(0, height-EditorHeight))
+			cmds = append(cmds, p.splash.SetSize(width, height-editorHeight))
+			cmds = append(cmds, p.editor.SetSize(width, editorHeight))
+			cmds = append(cmds, p.editor.SetPosition(0, height-editorHeight))
 		}
 	} else {
 		hasIncompleteTodos := hasIncompleteTodos(p.session.Todos)
@@ -897,17 +924,17 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		}
 
 		if p.compact {
-			cmds = append(cmds, p.chat.SetSize(width, height-EditorHeight-HeaderHeight-pillsAreaHeight))
+			cmds = append(cmds, p.chat.SetSize(width, height-editorHeight-HeaderHeight-pillsAreaHeight))
 			p.detailsWidth = width - DetailsPositioning
 			cmds = append(cmds, p.sidebar.SetSize(p.detailsWidth-LeftRightBorders, p.detailsHeight-TopBottomBorders))
-			cmds = append(cmds, p.editor.SetSize(width, EditorHeight))
+			cmds = append(cmds, p.editor.SetSize(width, editorHeight))
 			cmds = append(cmds, p.header.SetWidth(width-BorderWidth))
 		} else {
-			cmds = append(cmds, p.chat.SetSize(width-SideBarWidth, height-EditorHeight-pillsAreaHeight))
-			cmds = append(cmds, p.editor.SetSize(width, EditorHeight))
-			cmds = append(cmds, p.sidebar.SetSize(SideBarWidth, height-EditorHeight))
+			cmds = append(cmds, p.chat.SetSize(width-SideBarWidth, height-editorHeight-pillsAreaHeight))
+			cmds = append(cmds, p.editor.SetSize(width, editorHeight))
+			cmds = append(cmds, p.sidebar.SetSize(SideBarWidth, height-editorHeight))
 		}
-		cmds = append(cmds, p.editor.SetPosition(0, height-EditorHeight))
+		cmds = append(cmds, p.editor.SetPosition(0, height-editorHeight))
 	}
 	return tea.Batch(cmds...)
 }
@@ -1491,13 +1518,13 @@ func (p *chatPage) isMouseOverChat(x, y int) bool {
 		chatX = 0
 		chatY = HeaderHeight
 		chatWidth = p.width
-		chatHeight = p.height - EditorHeight - HeaderHeight
+		chatHeight = p.height - p.lastEditorHeight - HeaderHeight
 	} else {
 		// In non-compact mode: chat area spans from left edge to sidebar
 		chatX = 0
 		chatY = 0
 		chatWidth = p.width - SideBarWidth
-		chatHeight = p.height - EditorHeight
+		chatHeight = p.height - p.lastEditorHeight
 	}
 
 	// Check if mouse coordinates are within chat bounds

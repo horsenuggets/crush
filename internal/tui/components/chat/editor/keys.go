@@ -39,8 +39,8 @@ func DefaultEditorKeyMap() EditorKeyMap {
 			key.WithHelp("ctrl+v", "paste image from clipboard"),
 		),
 		VoiceInput: key.NewBinding(
-			key.WithKeys("ctrl+u"),
-			key.WithHelp("ctrl+u", "voice input"),
+			key.WithKeys("ctrl+y"),
+			key.WithHelp("ctrl+y", "voice input"),
 		),
 	}
 }
