@@ -2,7 +2,6 @@ package files
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -10,8 +9,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/charmbracelet/crush/internal/config"
-	"github.com/charmbracelet/crush/internal/fsext"
 	"github.com/charmbracelet/crush/internal/history"
 	"github.com/charmbracelet/crush/internal/tui/components/core"
 	"github.com/charmbracelet/crush/internal/tui/styles"
@@ -58,13 +55,20 @@ func RenderFileList(fileSlice []SessionFile, opts RenderOptions) []string {
 		return fileList
 	}
 
-	// Sort files by the latest version's created time
+	// Sort files alphabetically by filename
 	sort.Slice(fileSlice, func(i, j int) bool {
-		if fileSlice[i].History.LatestVersion.CreatedAt == fileSlice[j].History.LatestVersion.CreatedAt {
-			return strings.Compare(fileSlice[i].FilePath, fileSlice[j].FilePath) < 0
-		}
-		return fileSlice[i].History.LatestVersion.CreatedAt > fileSlice[j].History.LatestVersion.CreatedAt
+		return strings.Compare(filepath.Base(fileSlice[i].FilePath), filepath.Base(fileSlice[j].FilePath)) < 0
 	})
+
+	// Build a map of filenames to detect duplicates
+	filenameCounts := make(map[string]int)
+	for _, file := range fileSlice {
+		if file.Additions == 0 && file.Deletions == 0 {
+			continue
+		}
+		filename := filepath.Base(file.FilePath)
+		filenameCounts[filename]++
+	}
 
 	// Determine how many items to show
 	maxItems := len(fileSlice)
@@ -90,18 +94,23 @@ func RenderFileList(fileSlice []SessionFile, opts RenderOptions) []string {
 		}
 
 		extraContent := strings.Join(statusParts, " ")
-		cwd := config.Get().WorkingDir() + string(os.PathSeparator)
-		filePath := file.FilePath
-		if rel, err := filepath.Rel(cwd, filePath); err == nil {
-			filePath = rel
+
+		// Default to just the filename
+		filename := filepath.Base(file.FilePath)
+		displayPath := filename
+
+		// If there are duplicate filenames, add parent directory for disambiguation
+		if filenameCounts[filename] > 1 {
+			parentDir := filepath.Base(filepath.Dir(file.FilePath))
+			displayPath = parentDir + "/" + filename
 		}
-		filePath = fsext.DirTrim(fsext.PrettyPath(filePath), 2)
-		filePath = ansi.Truncate(filePath, opts.MaxWidth-lipgloss.Width(extraContent)-2, "…")
+
+		displayPath = ansi.Truncate(displayPath, opts.MaxWidth-lipgloss.Width(extraContent)-2, "…")
 
 		fileList = append(fileList,
 			core.Status(
 				core.StatusOpts{
-					Title:        filePath,
+					Title:        displayPath,
 					ExtraContent: extraContent,
 				},
 				opts.MaxWidth,
