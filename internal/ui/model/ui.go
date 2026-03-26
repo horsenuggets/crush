@@ -43,7 +43,7 @@ import (
 	"github.com/charmbracelet/crush/internal/ui/completions"
 	"github.com/charmbracelet/crush/internal/ui/dialog"
 	timage "github.com/charmbracelet/crush/internal/ui/image"
-	"github.com/charmbracelet/crush/internal/ui/logo"
+	"github.com/charmbracelet/crush/internal/tui/components/logo"
 	"github.com/charmbracelet/crush/internal/ui/styles"
 	tuistyles "github.com/charmbracelet/crush/internal/tui/styles"
 	"github.com/charmbracelet/crush/internal/uiutil"

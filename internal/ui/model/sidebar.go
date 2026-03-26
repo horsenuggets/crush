@@ -7,7 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/catwalk/pkg/catwalk"
 	"github.com/charmbracelet/crush/internal/ui/common"
-	"github.com/charmbracelet/crush/internal/ui/logo"
+	"github.com/charmbracelet/crush/internal/tui/components/logo"
 	uv "github.com/charmbracelet/ultraviolet"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
