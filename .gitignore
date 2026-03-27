@@ -45,6 +45,7 @@ Thumbs.db
 **/.crush/**
 
 /crush
+/chromadebug
 /tmp/
 
 manpages/
@@ -59,3 +60,4 @@ screenshots/
 
 # Versioned builds directory
 /builds/
+internal/ui/logo/
