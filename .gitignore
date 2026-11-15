@@ -62,3 +62,8 @@ screenshots/
 /builds/
 internal/ui/logo/
 /TODO.md
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
